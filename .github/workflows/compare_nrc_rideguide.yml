@@ -1,0 +1,55 @@
+name: Compare NRC routes with Ride Guide IDs
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "5 14 * * *"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Import NRC ArcGIS routes
+        run: python analysis/import_nrc_arcgis.py --output-dir data/nrc_arcgis
+
+      - name: Download recent collector artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARTIFACT_DAYS: "14"
+          ARTIFACT_OUTPUT_DIR: data/artifacts
+        run: python analysis/download_recent_artifacts.py
+
+      - name: Compare route identifiers
+        run: >-
+          python analysis/compare_nrc_rideguide_routes.py
+          --nrc-csv data/nrc_arcgis/nrc_bus_routes.csv
+          --realtime data/artifacts
+          --output-dir data/source_compare
+
+      - name: Upload comparison results
+        uses: actions/upload-artifact@v4
+        with:
+          name: nrc-rideguide-compare-${{ github.run_id }}
+          path: |
+            data/nrc_arcgis/*
+            data/source_compare/*
+          retention-days: 90
+          if-no-files-found: error
