@@ -1,0 +1,52 @@
+name: Test schedule monitoring
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "analysis/schedule_monitor.py"
+      - "requirements.txt"
+      - ".github/workflows/monitor-test.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test-monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate test CSV and plot
+        run: >-
+          python analysis/schedule_monitor.py
+          --demo
+          --output-csv output/test_arrival_variance.csv
+          --output-plot output/test_arrival_variance.png
+
+      - name: Show CSV in job log
+        run: cat output/test_arrival_variance.csv
+
+      - name: Upload monitoring test outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: schedule-monitor-test-${{ github.run_id }}
+          path: |
+            output/test_arrival_variance.csv
+            output/test_arrival_variance.png
+            output/demo_input/schedule.csv
+            output/demo_input/observations.jsonl
+          retention-days: 30
+          if-no-files-found: error
