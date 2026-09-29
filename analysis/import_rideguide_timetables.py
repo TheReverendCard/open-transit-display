@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 """Download current date-specific CityLink timetables from Ride Guide.
 
-This importer uses the same public timetable endpoint used by the Ride Guide
-web application:
+This importer uses the same timetable endpoint used by the Ride Guide web
+application:
 
     https://api.app.ride.guide/v2/timetable?routeId=1102&date=YYYYMMDD
 
 The response contains current route metadata, directions, stop names and
-coordinates, paired stops, trip IDs, and complete stop times.  This is a
-current passenger-facing timetable source and should be preferred over old
-archived PDFs.
+coordinates, paired stops, trip IDs, and complete stop times.
+
+Authentication is supplied through the RIDEGUIDE_API_KEY environment variable.
+The key is intentionally never stored in this repository.
 
 Outputs:
   raw/<date>/<route_id>.json
@@ -20,7 +21,7 @@ Outputs:
   service_dates.csv
   import_summary.json
 
-The importer is intentionally low-frequency.  It sleeps between requests and
+The importer is intentionally low-frequency. It sleeps between requests and
 only queries the route/date combinations requested by the caller.
 """
 
@@ -29,6 +30,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -119,20 +121,36 @@ def requested_routes(args: argparse.Namespace) -> List[str]:
     return sorted(set(route_ids), key=lambda value: int(value))
 
 
-def fetch_timetable(route_id: str, service_date: date, timeout: float) -> Dict[str, Any]:
+def get_api_key() -> str:
+    api_key = os.environ.get("RIDEGUIDE_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError(
+            "RIDEGUIDE_API_KEY is not set. Configure it as a secret/environment variable before running the importer."
+        )
+    return api_key
+
+
+def fetch_timetable(
+    route_id: str,
+    service_date: date,
+    timeout: float,
+    api_key: str,
+) -> Dict[str, Any]:
     query = urlencode({"routeId": route_id, "date": service_date.strftime("%Y%m%d")})
     url = f"{API_URL}?{query}"
     request = Request(
         url,
         headers={
-            "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "en-NZ,en;q=0.9",
+            "Accept": "*/*",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Content-Type": "application/json",
             "Origin": APP_ORIGIN,
             "Referer": APP_REFERER,
             "Sec-Fetch-Dest": "empty",
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Site": "same-site",
             "User-Agent": BROWSER_USER_AGENT,
+            "x-api-key": api_key,
         },
     )
     with urlopen(request, timeout=timeout) as response:
@@ -152,7 +170,9 @@ def write_csv(path: Path, rows: Iterable[Dict[str, Any]], fields: Sequence[str])
         writer.writerows(rows)
 
 
-def normalize(payloads: List[Tuple[date, str, Dict[str, Any]]]) -> Tuple[List[Dict[str, Any]], ...]:
+def normalize(
+    payloads: List[Tuple[date, str, Dict[str, Any]]]
+) -> Tuple[List[Dict[str, Any]], ...]:
     route_rows: Dict[Tuple[str, str], Dict[str, Any]] = {}
     stop_rows: Dict[str, Dict[str, Any]] = {}
     trip_rows: Dict[Tuple[str, str, int, str], Dict[str, Any]] = {}
@@ -205,7 +225,9 @@ def normalize(payloads: List[Tuple[date, str, Dict[str, Any]]]) -> Tuple[List[Di
                     "is_primary": stop.get("isPrimary", ""),
                     "timepoint_seen": stop.get("timepoint", ""),
                 }
-                if existing is None or (not existing.get("stop_name") and candidate.get("stop_name")):
+                if existing is None or (
+                    not existing.get("stop_name") and candidate.get("stop_name")
+                ):
                     stop_rows[stop_id] = candidate
 
             trips = direction.get("trips") or []
@@ -216,7 +238,9 @@ def normalize(payloads: List[Tuple[date, str, Dict[str, Any]]]) -> Tuple[List[Di
                 trip_id = str(trip.get("tripId") or "").strip()
                 if not trip_id:
                     continue
-                stop_times = [row for row in (trip.get("stopTimes") or []) if isinstance(row, dict)]
+                stop_times = [
+                    row for row in (trip.get("stopTimes") or []) if isinstance(row, dict)
+                ]
                 first = stop_times[0] if stop_times else {}
                 last = stop_times[-1] if stop_times else {}
                 trip_rows[(payload_date, route_id, int(direction_id), trip_id)] = {
@@ -266,7 +290,10 @@ def normalize(payloads: List[Tuple[date, str, Dict[str, Any]]]) -> Tuple[List[Di
         )
 
     return (
-        sorted(route_rows.values(), key=lambda row: (row["service_date"], int(row["route_id"]))),
+        sorted(
+            route_rows.values(),
+            key=lambda row: (row["service_date"], int(row["route_id"])),
+        ),
         sorted(stop_rows.values(), key=lambda row: row["stop_id"]),
         sorted(
             trip_rows.values(),
@@ -288,12 +315,16 @@ def normalize(payloads: List[Tuple[date, str, Dict[str, Any]]]) -> Tuple[List[Di
                 int(row["stop_sequence"]),
             ),
         ),
-        sorted(service_rows, key=lambda row: (row["service_date"], int(row["route_id"]))),
+        sorted(
+            service_rows,
+            key=lambda row: (row["service_date"], int(row["route_id"])),
+        ),
     )
 
 
 def main() -> None:
     args = parse_args()
+    api_key = get_api_key()
     dates = requested_dates(args)
     route_ids = requested_routes(args)
     output_dir = Path(args.output_dir)
@@ -306,7 +337,12 @@ def main() -> None:
     for service_date in dates:
         for route_id in route_ids:
             try:
-                payload = fetch_timetable(route_id, service_date, args.timeout_seconds)
+                payload = fetch_timetable(
+                    route_id,
+                    service_date,
+                    args.timeout_seconds,
+                    api_key,
+                )
             except Exception as exc:  # Keep other route/date imports usable.
                 errors.append(
                     {
@@ -422,15 +458,14 @@ def main() -> None:
         "trips": len(trips),
         "stop_times": len(stop_times),
         "errors": errors,
-        "request_context": {
-            "origin": APP_ORIGIN,
-            "referer": APP_REFERER,
-            "browser_like_headers": True,
-        },
-        "note": "Current date-specific passenger timetable data from Ride Guide; not an archived PDF and not inferred from realtime observations.",
+        "note": (
+            "Current date-specific passenger timetable data from Ride Guide; "
+            "not an archived PDF and not inferred from realtime observations."
+        ),
     }
     (output_dir / "import_summary.json").write_text(
-        json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        json.dumps(summary, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
     )
 
     print(json.dumps(summary, indent=2))
