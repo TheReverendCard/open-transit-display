@@ -1,0 +1,56 @@
+name: Benchmark Ride Guide predictions
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "35 15 * * *"
+  push:
+    paths:
+      - "analysis/benchmark_rideguide_predictions.py"
+      - ".github/workflows/benchmark_predictions.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install requests
+        run: pip install requests
+
+      - name: Benchmark Ride Guide predictions and tiny fallback
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          python analysis/benchmark_rideguide_predictions.py
+          --collector-days 14
+          --horizons 5,10,15,30
+          --output-dir data/prediction_benchmark
+
+      - name: Show benchmark summary
+        run: cat data/prediction_benchmark/summary.json
+
+      - name: Show benchmark metrics
+        run: cat data/prediction_benchmark/prediction_metrics.csv
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: prediction-benchmark-${{ github.run_id }}
+          path: |
+            data/prediction_benchmark/*.csv
+            data/prediction_benchmark/summary.json
+          retention-days: 90
+          if-no-files-found: error
