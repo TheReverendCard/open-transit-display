@@ -1,0 +1,54 @@
+name: Diagnose very-early stop observations
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "analysis/diagnose_early_stops.py"
+      - ".github/workflows/diagnose_early_stops.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install requests
+        run: pip install requests
+
+      - name: Diagnose very-early STOPPED_AT observations
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python analysis/diagnose_early_stops.py
+          --collector-days 7
+          --early-seconds 300
+          --output-dir data/early_stop_diagnosis
+
+      - name: Show diagnosis summary
+        run: cat data/early_stop_diagnosis/summary.json
+
+      - name: Show very-early observations
+        run: cat data/early_stop_diagnosis/early_stop_diagnosis.csv
+
+      - name: Upload diagnosis
+        uses: actions/upload-artifact@v4
+        with:
+          name: early-stop-diagnosis-${{ github.run_id }}
+          path: |
+            data/early_stop_diagnosis/*.csv
+            data/early_stop_diagnosis/summary.json
+          retention-days: 90
+          if-no-files-found: error
