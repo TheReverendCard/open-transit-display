@@ -1,0 +1,51 @@
+name: Infer provisional schedule from realtime
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "35 13 * * *"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  infer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download recent collector artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARTIFACT_DAYS: "14"
+          ARTIFACT_OUTPUT_DIR: data/artifacts
+        run: python analysis/download_recent_artifacts.py
+
+      - name: Infer provisional schedule
+        run: >-
+          python analysis/infer_schedule_from_realtime.py
+          --input data/artifacts
+          --output-dir data/derived_schedule
+          --timezone Pacific/Auckland
+          --min-days 2
+
+      - name: Upload inferred schedule
+        uses: actions/upload-artifact@v4
+        with:
+          name: derived-schedule-${{ github.run_id }}
+          path: data/derived_schedule/*
+          retention-days: 90
+          if-no-files-found: error
