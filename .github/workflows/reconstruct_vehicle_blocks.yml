@@ -1,0 +1,53 @@
+name: Reconstruct vehicle blocks
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "analysis/reconstruct_vehicle_blocks.py"
+      - ".github/workflows/reconstruct_vehicle_blocks.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  reconstruct:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install requests
+        run: pip install requests
+
+      - name: Reconstruct coach assignment blocks
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python analysis/reconstruct_vehicle_blocks.py
+          --collector-days 7
+          --output-dir data/vehicle_blocks
+
+      - name: Show summary
+        run: cat data/vehicle_blocks/summary.json
+
+      - name: Show cross-route transitions
+        run: awk -F, 'NR==1 || $6=="True"' data/vehicle_blocks/trip_transitions.csv
+
+      - name: Upload vehicle block results
+        uses: actions/upload-artifact@v4
+        with:
+          name: vehicle-blocks-${{ github.run_id }}
+          path: |
+            data/vehicle_blocks/*.csv
+            data/vehicle_blocks/summary.json
+          retention-days: 90
+          if-no-files-found: error
