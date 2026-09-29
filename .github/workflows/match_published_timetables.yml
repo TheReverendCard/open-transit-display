@@ -2,6 +2,14 @@ name: Match published CityLink timetables
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - "analysis/scrape_buslink_timetables.py"
+      - "analysis/match_published_timetables.py"
+      - "analysis/infer_schedule_from_realtime.py"
+      - "analysis/download_recent_artifacts.py"
+      - "requirements.txt"
+      - ".github/workflows/match_published_timetables.yml"
   schedule:
     - cron: "25 16 * * *"
 
