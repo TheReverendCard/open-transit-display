@@ -1,0 +1,45 @@
+name: Import current Ride Guide timetables
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 17 * * 1"
+  push:
+    paths:
+      - "analysis/import_rideguide_timetables.py"
+      - ".github/workflows/import_rideguide_timetables.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Import seven days of current CityLink timetables
+        run: >-
+          python analysis/import_rideguide_timetables.py
+          --days 7
+          --output-dir data/rideguide_timetables
+          --delay-seconds 0.35
+
+      - name: Show import summary
+        run: cat data/rideguide_timetables/import_summary.json
+
+      - name: Upload timetable snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: rideguide-timetables-${{ github.run_id }}
+          path: data/rideguide_timetables/**
+          retention-days: 90
+          if-no-files-found: error
