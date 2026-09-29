@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
-"""Scrape published CityLink timetables from BusLink into normalized CSV files.
+"""Discover BusLink CityLink routes and normalize published timetable data.
 
-The goal is not to create official GTFS.  It preserves the human-facing
-published timetable so it can be matched against Ride Guide's machine IDs.
+BusLink's current CityLink page links each public route to its Ride Guide view
+using URL fragments such as ``#/route/1102?timetable=true``.  Those links give
+us a direct, current bridge between passenger-facing route numbers and Ride
+Guide route IDs, so we record that mapping explicitly.
+
+If ordinary HTML timetable tables are present on a route page, this script also
+normalizes them.  At present the timetable itself is rendered client-side, so
+an empty ``published_timetable.csv`` is valid and the direct route mapping is
+still useful.
 
 Outputs:
   published_routes.csv
   published_timetable.csv
   scrape_summary.json
-
-Example:
-  python analysis/scrape_buslink_timetables.py \
-      --output-dir data/published_timetables
 """
 
 from __future__ import annotations
@@ -35,6 +38,7 @@ TIME_RE = re.compile(
     re.IGNORECASE,
 )
 ROUTE_RE = re.compile(r"^\s*(\d+[a-zA-Z]?)\s+(.+?)(?:\s+View timetable)?\s*$", re.IGNORECASE)
+RIDEGUIDE_ROUTE_RE = re.compile(r"#/route/([^?/#]+)", re.IGNORECASE)
 
 
 FALLBACK_ROUTES = [
@@ -51,7 +55,7 @@ FALLBACK_ROUTES = [
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Scrape BusLink CityLink published timetables.")
+    parser = argparse.ArgumentParser(description="Discover BusLink CityLink routes and published timetables.")
     parser.add_argument("--output-dir", default="data/published_timetables")
     parser.add_argument("--citylink-url", default=CITYLINK_URL)
     parser.add_argument("--timeout", type=int, default=60)
@@ -86,6 +90,11 @@ def parse_route_label(text: str) -> Optional[Tuple[str, str]]:
     return route, name
 
 
+def extract_rideguide_route_id(url: str) -> str:
+    match = RIDEGUIDE_ROUTE_RE.search(url or "")
+    return match.group(1) if match else ""
+
+
 def discover_routes(html: str, base_url: str) -> List[Dict[str, str]]:
     soup = BeautifulSoup(html, "html.parser")
     found: Dict[str, Dict[str, str]] = {}
@@ -99,18 +108,22 @@ def discover_routes(html: str, base_url: str) -> List[Dict[str, str]]:
 
         parsed = parse_route_label(anchor.get_text(" ", strip=True))
         if not parsed:
-            # Some cards put route text outside the anchor.  Try the parent.
             parent_text = anchor.parent.get_text(" ", strip=True) if anchor.parent else ""
             parsed = parse_route_label(parent_text)
         if not parsed:
             continue
 
         route_public, route_name = parsed
+        absolute_url = urljoin(base_url, href)
+        rideguide_route_id = extract_rideguide_route_id(absolute_url)
         found[route_public] = {
             "route_public": route_public,
             "route_name": route_name,
-            "url": urljoin(base_url, href),
+            "rideguide_route_id": rideguide_route_id,
+            "url": absolute_url,
             "source": "discovered_from_citylink_page",
+            "mapping_source": "buslink_current_timetable_link" if rideguide_route_id else "",
+            "mapping_confidence": "direct" if rideguide_route_id else "unmapped",
         }
 
     for route_public, route_name, href in FALLBACK_ROUTES:
@@ -119,8 +132,11 @@ def discover_routes(html: str, base_url: str) -> List[Dict[str, str]]:
             {
                 "route_public": route_public,
                 "route_name": route_name,
+                "rideguide_route_id": "",
                 "url": urljoin(base_url, href),
                 "source": "fallback_route_list",
+                "mapping_source": "",
+                "mapping_confidence": "unmapped",
             },
         )
 
@@ -211,11 +227,7 @@ def table_matrix(table: Tag) -> List[List[str]]:
     return matrix
 
 
-def parse_table(
-    table: Tag,
-    route: Dict[str, str],
-    table_index: int,
-) -> List[Dict[str, Any]]:
+def parse_table(table: Tag, route: Dict[str, str], table_index: int) -> List[Dict[str, Any]]:
     matrix = table_matrix(table)
     if not matrix:
         return []
@@ -224,10 +236,8 @@ def parse_table(
     context = " | ".join(headings)
     period_hint = context_period(context)
     service_days = service_days_from_context(context)
-
     rows: List[Dict[str, Any]] = []
 
-    # Detect simple vertical Stop | Time tables.
     if max(len(row) for row in matrix) <= 3:
         vertical_pairs = []
         for row_index, row in enumerate(matrix):
@@ -247,6 +257,7 @@ def parse_table(
                         "official_gtfs": "false",
                         "route_public": route["route_public"],
                         "route_name": route["route_name"],
+                        "rideguide_route_id": route.get("rideguide_route_id", ""),
                         "route_url": route["url"],
                         "table_index": table_index,
                         "trip_index": 0,
@@ -264,7 +275,6 @@ def parse_table(
                 )
             return rows
 
-    # Wide timetable.  Pick the first row that looks more like labels than times.
     header_index = 0
     best_header_score = -1
     for idx, row in enumerate(matrix[:4]):
@@ -289,18 +299,18 @@ def parse_table(
             if minutes is None:
                 continue
             seq += 1
-            label = headers[col] if col < len(headers) else f"Column {col + 1}"
             rows.append(
                 {
                     "source": "buslink_published_timetable",
                     "official_gtfs": "false",
                     "route_public": route["route_public"],
                     "route_name": route["route_name"],
+                    "rideguide_route_id": route.get("rideguide_route_id", ""),
                     "route_url": route["url"],
                     "table_index": table_index,
                     "trip_index": trip_index,
                     "timing_point_sequence": seq,
-                    "timing_point_label": label,
+                    "timing_point_label": headers[col] if col < len(headers) else f"Column {col + 1}",
                     "published_time": row[col],
                     "published_minutes": minutes,
                     "time_parse_confidence": confidence,
@@ -347,31 +357,29 @@ def main() -> None:
                 timetable_rows.extend(parsed)
                 parsed_count += len(parsed)
 
-            route_rows.append(
-                {
-                    **route,
-                    "http_ok": "true",
-                    "tables_found": len(tables),
-                    "normalized_rows": parsed_count,
-                }
-            )
+            route_rows.append({**route, "http_ok": "true", "tables_found": len(tables), "normalized_rows": parsed_count})
         except Exception as exc:
             failures.append({"route_public": route["route_public"], "url": route["url"], "error": str(exc)})
-            route_rows.append(
-                {
-                    **route,
-                    "http_ok": "false",
-                    "tables_found": 0,
-                    "normalized_rows": 0,
-                }
-            )
+            route_rows.append({**route, "http_ok": "false", "tables_found": 0, "normalized_rows": 0})
 
-    route_fields = ["route_public", "route_name", "url", "source", "http_ok", "tables_found", "normalized_rows"]
+    route_fields = [
+        "route_public",
+        "route_name",
+        "rideguide_route_id",
+        "url",
+        "source",
+        "mapping_source",
+        "mapping_confidence",
+        "http_ok",
+        "tables_found",
+        "normalized_rows",
+    ]
     timetable_fields = [
         "source",
         "official_gtfs",
         "route_public",
         "route_name",
+        "rideguide_route_id",
         "route_url",
         "table_index",
         "trip_index",
@@ -390,14 +398,20 @@ def main() -> None:
     write_csv(output_dir / "published_routes.csv", route_rows, route_fields)
     write_csv(output_dir / "published_timetable.csv", timetable_rows, timetable_fields)
 
+    direct_mappings = [row for row in route_rows if row.get("rideguide_route_id")]
     summary = {
         "source": args.citylink_url,
         "routes_discovered_or_fallback": len(routes),
         "routes_fetched": sum(1 for row in route_rows if row["http_ok"] == "true"),
+        "direct_rideguide_route_mappings": len(direct_mappings),
         "routes_failed": len(failures),
         "normalized_timetable_rows": len(timetable_rows),
+        "client_side_timetable_detected": bool(direct_mappings) and not timetable_rows,
         "failures": failures,
-        "note": "Published passenger timetable normalized for matching. This is not an official GTFS feed.",
+        "note": (
+            "Current BusLink timetable links directly expose Ride Guide route IDs. "
+            "The passenger timetable itself may be client-side and therefore absent from static HTML."
+        ),
     }
     (output_dir / "scrape_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
 
