@@ -1,0 +1,55 @@
+name: Analyse scheduled vs observed reliability
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "analysis/analyse_schedule_reliability.py"
+      - ".github/workflows/analyse_schedule_reliability.yml"
+  schedule:
+    - cron: "45 18 * * *"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  analyse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install requests
+        run: pip install requests
+
+      - name: Analyse scheduled versus observed stop times
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python analysis/analyse_schedule_reliability.py
+          --collector-days 7
+          --output-dir data/schedule_reliability
+
+      - name: Show summary
+        run: cat data/schedule_reliability/summary.json
+
+      - name: Show route reliability
+        run: cat data/schedule_reliability/route_reliability.csv
+
+      - name: Upload reliability results
+        uses: actions/upload-artifact@v4
+        with:
+          name: schedule-reliability-${{ github.run_id }}
+          path: |
+            data/schedule_reliability/*.csv
+            data/schedule_reliability/summary.json
+          retention-days: 90
+          if-no-files-found: error
