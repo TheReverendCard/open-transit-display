@@ -1,0 +1,60 @@
+name: Test generic GTFS import with Auckland Transport
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 16 * * 0"
+  push:
+    paths:
+      - "gtfs/import_gtfs.py"
+      - "gtfs/README.md"
+      - ".github/workflows/test_gtfs_auckland.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test-auckland-gtfs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Import a representative Auckland GTFS subset
+        run: >-
+          python gtfs/import_gtfs.py
+          --source https://gtfs.at.govt.nz/gtfs.zip
+          --route-short-names 18,70,NX1
+          --days 7
+          --agency-label "Auckland Transport"
+          --output-dir data/gtfs_auckland
+
+      - name: Show manifest
+        run: cat data/gtfs_auckland/manifest.json
+
+      - name: Check display output exists
+        run: |
+          test -s data/gtfs_auckland/display_departures.csv
+          test -d data/gtfs_auckland/display_stops
+          test "$(find data/gtfs_auckland/display_stops -type f -name '*.json' | wc -l)" -gt 0
+
+      - name: Show a sample display stop
+        run: |
+          sample="$(find data/gtfs_auckland/display_stops -type f -name '*.json' | sort | head -n 1)"
+          echo "$sample"
+          python -m json.tool "$sample" | head -n 80
+
+      - name: Upload Auckland GTFS compatibility output
+        uses: actions/upload-artifact@v4
+        with:
+          name: gtfs-auckland-${{ github.run_id }}
+          path: data/gtfs_auckland/**
+          retention-days: 30
+          if-no-files-found: error
