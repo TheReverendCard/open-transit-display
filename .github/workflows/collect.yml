@@ -2,6 +2,11 @@ name: Collect realtime transit data
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - "collector/collect_rideguide.py"
+      - "requirements.txt"
+      - ".github/workflows/collect.yml"
   schedule:
     - cron: "*/15 * * * *"
 
