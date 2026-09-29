@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-"""Match BusLink's published passenger timetable against inferred Ride Guide trips.
+"""Match BusLink passenger-facing routes/trips to Ride Guide machine IDs.
+
+Route identity is taken first from BusLink's current timetable links, which
+contain Ride Guide route IDs directly (for example ``#/route/1102``). That is
+stronger evidence than geometry or timing similarity.
+
+If published timetable rows and derived Ride Guide schedule rows are available,
+this script then performs trip-level timing matching *within the already-known
+route mapping*.
 
 Inputs:
-  published_timetable.csv from scrape_buslink_timetables.py
-  derived_schedule.csv from infer_schedule_from_realtime.py
-
-The matcher deliberately starts with timing fingerprints rather than route geometry.
-It scores public route/trip candidates against Ride Guide machine route/trip IDs using
-published timing-point times, inferred stop times, weekday overlap, and sequence shape.
+  published_routes.csv
+  published_timetable.csv
+  derived_schedule.csv
 
 Outputs:
   route_matches.csv
@@ -20,7 +25,6 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import math
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
@@ -38,17 +42,19 @@ WEEKDAY_INDEX = {
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Match published BusLink timetable to Ride Guide IDs.")
+    parser = argparse.ArgumentParser(description="Match BusLink routes and timetables to Ride Guide IDs.")
+    parser.add_argument("--routes", required=True, help="published_routes.csv")
     parser.add_argument("--published", required=True, help="published_timetable.csv")
     parser.add_argument("--derived", required=True, help="derived_schedule.csv")
     parser.add_argument("--output-dir", default="data/timetable_matches")
-    parser.add_argument("--start-tolerance", type=float, default=6.0, help="Minutes for a strong trip-start match")
-    parser.add_argument("--route-top", type=int, default=5, help="Route candidates retained per public route")
-    parser.add_argument("--trip-top", type=int, default=5, help="Trip candidates retained per published trip")
+    parser.add_argument("--start-tolerance", type=float, default=6.0)
+    parser.add_argument("--trip-top", type=int, default=5)
     return parser.parse_args()
 
 
 def read_csv(path: Path) -> List[Dict[str, str]]:
+    if not path.exists():
+        return []
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
         return list(csv.DictReader(handle))
 
@@ -74,7 +80,6 @@ def circular_minute_diff(a: int, b: int) -> int:
 
 
 def best_clock_diff(published_minutes: int, derived_minutes: int, confidence: str) -> int:
-    """Allow a 12-hour ambiguity only when the published page did not establish AM/PM."""
     candidates = [published_minutes]
     if confidence == "ambiguous_12h":
         candidates.extend([(published_minutes + 720) % 1440, (published_minutes - 720) % 1440])
@@ -82,7 +87,7 @@ def best_clock_diff(published_minutes: int, derived_minutes: int, confidence: st
 
 
 def parsed_service_days(value: str) -> set[int]:
-    result = set()
+    result: set[int] = set()
     for token in (value or "").split(";"):
         token = token.strip()
         if token in WEEKDAY_INDEX:
@@ -93,11 +98,7 @@ def parsed_service_days(value: str) -> set[int]:
 def group_published(rows: List[Dict[str, str]]) -> Dict[Tuple[str, str, str], List[Dict[str, str]]]:
     grouped: Dict[Tuple[str, str, str], List[Dict[str, str]]] = defaultdict(list)
     for row in rows:
-        key = (
-            row.get("route_public", ""),
-            row.get("table_index", ""),
-            row.get("trip_index", ""),
-        )
+        key = (row.get("route_public", ""), row.get("table_index", ""), row.get("trip_index", ""))
         grouped[key].append(row)
     for group in grouped.values():
         group.sort(key=lambda row: safe_int(row.get("timing_point_sequence")) or 999999)
@@ -117,7 +118,7 @@ def group_derived(rows: List[Dict[str, str]]) -> Dict[Tuple[str, str, int], List
     return grouped
 
 
-def first_time_published(group: List[Dict[str, str]]) -> Optional[Tuple[int, str]]:
+def first_published_time(group: List[Dict[str, str]]) -> Optional[Tuple[int, str]]:
     for row in group:
         minutes = safe_int(row.get("published_minutes"))
         if minutes is not None:
@@ -125,7 +126,7 @@ def first_time_published(group: List[Dict[str, str]]) -> Optional[Tuple[int, str
     return None
 
 
-def first_time_derived(group: List[Dict[str, str]]) -> Optional[int]:
+def first_derived_time(group: List[Dict[str, str]]) -> Optional[int]:
     for row in group:
         seconds = safe_int(row.get("inferred_seconds_since_midnight"))
         if seconds is not None:
@@ -135,14 +136,13 @@ def first_time_derived(group: List[Dict[str, str]]) -> Optional[int]:
 
 def published_offsets(group: List[Dict[str, str]]) -> List[int]:
     values: List[int] = []
-    first = None
+    first: Optional[int] = None
     for row in group:
         minutes = safe_int(row.get("published_minutes"))
         if minutes is None:
             continue
         if first is None:
             first = minutes
-        # Timetable rows are short enough that 12h-wrap is not expected within one trip.
         delta = minutes - first
         if delta < -360:
             delta += 720
@@ -154,7 +154,7 @@ def published_offsets(group: List[Dict[str, str]]) -> List[int]:
 
 def derived_offsets(group: List[Dict[str, str]]) -> List[int]:
     values: List[int] = []
-    first = None
+    first: Optional[int] = None
     for row in group:
         seconds = safe_int(row.get("inferred_seconds_since_midnight"))
         if seconds is None:
@@ -170,20 +170,13 @@ def derived_offsets(group: List[Dict[str, str]]) -> List[int]:
 
 
 def sequence_shape_error(public: List[int], derived: List[int]) -> Optional[float]:
-    """Compare relative timing shape without requiring stop-name identity.
-
-    Published timetables often expose only major timing points while Ride Guide has
-    every stop.  We therefore align each published offset to its nearest derived
-    offset while preserving order.
-    """
     if len(public) < 2 or len(derived) < 2:
         return None
-
     cursor = 0
     errors: List[float] = []
     for offset in public:
-        best_index = None
-        best_error = None
+        best_index: Optional[int] = None
+        best_error: Optional[int] = None
         for index in range(cursor, len(derived)):
             error = abs(derived[index] - offset)
             if best_error is None or error < best_error:
@@ -193,50 +186,31 @@ def sequence_shape_error(public: List[int], derived: List[int]) -> Optional[floa
             break
         errors.append(float(best_error))
         cursor = best_index
-
     if len(errors) < 2:
         return None
     return sum(errors) / len(errors)
 
 
-def weekday_overlap(public_group: List[Dict[str, str]], derived_weekday: int) -> Tuple[bool, str]:
-    days: set[int] = set()
-    raw_values = []
-    for row in public_group:
-        raw = row.get("service_days", "")
-        if raw:
-            raw_values.append(raw)
-            days.update(parsed_service_days(raw))
-    if not days:
-        return True, "published_weekday_unknown"
-    return derived_weekday in days, ";".join(sorted(set(raw_values)))
-
-
-def score_trip(
-    public_group: List[Dict[str, str]],
-    derived_group: List[Dict[str, str]],
-    derived_weekday: int,
-    start_tolerance: float,
-) -> Dict[str, Any]:
-    public_start = first_time_published(public_group)
-    derived_start = first_time_derived(derived_group)
+def score_trip(public_group: List[Dict[str, str]], derived_group: List[Dict[str, str]], weekday: int, tolerance: float) -> Dict[str, Any]:
+    public_start = first_published_time(public_group)
+    derived_start = first_derived_time(derived_group)
     if public_start is None or derived_start is None:
         return {"score": 0.0, "start_error_minutes": "", "shape_error_minutes": "", "weekday_ok": False}
 
-    published_minutes, confidence = public_start
-    start_error = best_clock_diff(published_minutes, derived_start, confidence)
-    weekday_ok, _ = weekday_overlap(public_group, derived_weekday)
+    allowed_days: set[int] = set()
+    for row in public_group:
+        allowed_days.update(parsed_service_days(row.get("service_days", "")))
+    weekday_ok = not allowed_days or weekday in allowed_days
+
+    published_minutes, time_confidence = public_start
+    start_error = best_clock_diff(published_minutes, derived_start, time_confidence)
     shape_error = sequence_shape_error(published_offsets(public_group), derived_offsets(derived_group))
 
-    start_score = max(0.0, 1.0 - start_error / max(1.0, start_tolerance * 3.0))
-    if shape_error is None:
-        shape_score = 0.35
-    else:
-        shape_score = max(0.0, 1.0 - shape_error / 12.0)
+    start_score = max(0.0, 1.0 - start_error / max(1.0, tolerance * 3.0))
+    shape_score = 0.35 if shape_error is None else max(0.0, 1.0 - shape_error / 12.0)
     weekday_score = 1.0 if weekday_ok else 0.0
+    score = 100.0 * (0.65 * start_score + 0.25 * shape_score + 0.10 * weekday_score)
 
-    # Timing is the strongest evidence.  Relative trip shape and weekday are corroboration.
-    score = 100.0 * (0.60 * start_score + 0.25 * shape_score + 0.15 * weekday_score)
     return {
         "score": round(score, 2),
         "start_error_minutes": start_error,
@@ -247,36 +221,55 @@ def score_trip(
 
 def main() -> None:
     args = parse_args()
+    route_rows = read_csv(Path(args.routes))
     published_rows = read_csv(Path(args.published))
     derived_rows = read_csv(Path(args.derived))
 
+    direct_routes: Dict[str, Dict[str, str]] = {}
+    route_matches: List[Dict[str, Any]] = []
+    for row in route_rows:
+        public = row.get("route_public", "")
+        rideguide = row.get("rideguide_route_id", "")
+        if not public or not rideguide:
+            continue
+        direct_routes[public] = row
+        route_matches.append(
+            {
+                "route_public": public,
+                "route_name": row.get("route_name", ""),
+                "rideguide_route_id": rideguide,
+                "mapping_source": row.get("mapping_source", "buslink_current_timetable_link"),
+                "confidence": "direct",
+                "evidence_url": row.get("url", ""),
+            }
+        )
+
     published_groups = group_published(published_rows)
     derived_groups = group_derived(derived_rows)
+    trip_matches: List[Dict[str, Any]] = []
 
-    trip_candidates: List[Dict[str, Any]] = []
     for (route_public, table_index, trip_index), public_group in published_groups.items():
-        public_name = public_group[0].get("route_name", "") if public_group else ""
-        context = public_group[0].get("section_context", "") if public_group else ""
-        allowed_days = set()
-        for row in public_group:
-            allowed_days.update(parsed_service_days(row.get("service_days", "")))
-
+        route_mapping = direct_routes.get(route_public)
+        if not route_mapping:
+            continue
+        rideguide_route_id = route_mapping.get("rideguide_route_id", "")
         candidates: List[Dict[str, Any]] = []
+
         for (route_id, trip_id, weekday), derived_group in derived_groups.items():
-            if allowed_days and weekday not in allowed_days:
+            if route_id != rideguide_route_id:
                 continue
             result = score_trip(public_group, derived_group, weekday, args.start_tolerance)
             candidates.append(
                 {
                     "route_public": route_public,
-                    "route_name": public_name,
+                    "route_name": route_mapping.get("route_name", ""),
+                    "rideguide_route_id": rideguide_route_id,
                     "published_table_index": table_index,
                     "published_trip_index": trip_index,
-                    "section_context": context,
-                    "rideguide_route_id": route_id,
                     "rideguide_trip_id": trip_id,
                     "weekday": weekday,
                     "weekday_name": derived_group[0].get("weekday_name", ""),
+                    "section_context": public_group[0].get("section_context", ""),
                     **result,
                 }
             )
@@ -284,106 +277,57 @@ def main() -> None:
         candidates.sort(key=lambda row: (-float(row["score"]), float(row["start_error_minutes"] or 99999)))
         for rank, candidate in enumerate(candidates[: args.trip_top], start=1):
             candidate["candidate_rank"] = rank
-            trip_candidates.append(candidate)
-
-    # Aggregate top trip evidence into route-level confidence.
-    evidence: Dict[Tuple[str, str], List[float]] = defaultdict(list)
-    matched_trip_counts: Dict[Tuple[str, str], int] = defaultdict(int)
-    for row in trip_candidates:
-        if row["candidate_rank"] != 1:
-            continue
-        key = (row["route_public"], row["rideguide_route_id"])
-        evidence[key].append(float(row["score"]))
-        if float(row["score"]) >= 70:
-            matched_trip_counts[key] += 1
-
-    public_routes = sorted({row.get("route_public", "") for row in published_rows if row.get("route_public")})
-    rideguide_routes = sorted({row.get("route_id", "") for row in derived_rows if row.get("route_id")})
-
-    route_candidates: List[Dict[str, Any]] = []
-    for public_route in public_routes:
-        candidates = []
-        public_name = next((row.get("route_name", "") for row in published_rows if row.get("route_public") == public_route), "")
-        for rideguide_route in rideguide_routes:
-            scores = evidence.get((public_route, rideguide_route), [])
-            if scores:
-                mean_score = sum(scores) / len(scores)
-                strong = matched_trip_counts.get((public_route, rideguide_route), 0)
-            else:
-                # There may be no winning top-ranked trips for this route pair.
-                pair_scores = [
-                    float(row["score"])
-                    for row in trip_candidates
-                    if row["route_public"] == public_route and row["rideguide_route_id"] == rideguide_route
-                ]
-                mean_score = sum(pair_scores) / len(pair_scores) if pair_scores else 0.0
-                strong = sum(1 for score in pair_scores if score >= 70)
-
-            candidates.append(
-                {
-                    "route_public": public_route,
-                    "route_name": public_name,
-                    "rideguide_route_id": rideguide_route,
-                    "mean_trip_match_score": round(mean_score, 2),
-                    "strong_trip_matches": strong,
-                    "evidence_trip_count": len(scores),
-                }
-            )
-
-        candidates.sort(key=lambda row: (-row["strong_trip_matches"], -row["mean_trip_match_score"], row["rideguide_route_id"]))
-        for rank, candidate in enumerate(candidates[: args.route_top], start=1):
-            candidate["candidate_rank"] = rank
-            if rank == 1 and candidate["strong_trip_matches"] >= 2 and candidate["mean_trip_match_score"] >= 80:
+            if rank == 1 and float(candidate["score"]) >= 85:
                 candidate["confidence"] = "high"
-            elif rank == 1 and candidate["mean_trip_match_score"] >= 65:
+            elif rank == 1 and float(candidate["score"]) >= 65:
                 candidate["confidence"] = "medium"
             else:
                 candidate["confidence"] = "low"
-            route_candidates.append(candidate)
+            trip_matches.append(candidate)
 
     output_dir = Path(args.output_dir)
+    route_fields = [
+        "route_public",
+        "route_name",
+        "rideguide_route_id",
+        "mapping_source",
+        "confidence",
+        "evidence_url",
+    ]
     trip_fields = [
         "route_public",
         "route_name",
+        "rideguide_route_id",
         "published_table_index",
         "published_trip_index",
-        "section_context",
-        "rideguide_route_id",
         "rideguide_trip_id",
         "weekday",
         "weekday_name",
+        "section_context",
         "score",
         "start_error_minutes",
         "shape_error_minutes",
         "weekday_ok",
         "candidate_rank",
-    ]
-    route_fields = [
-        "route_public",
-        "route_name",
-        "rideguide_route_id",
-        "mean_trip_match_score",
-        "strong_trip_matches",
-        "evidence_trip_count",
-        "candidate_rank",
         "confidence",
     ]
 
-    write_csv(output_dir / "trip_matches.csv", trip_candidates, trip_fields)
-    write_csv(output_dir / "route_matches.csv", route_candidates, route_fields)
+    write_csv(output_dir / "route_matches.csv", route_matches, route_fields)
+    write_csv(output_dir / "trip_matches.csv", trip_matches, trip_fields)
 
-    top_routes = [row for row in route_candidates if row["candidate_rank"] == 1]
     summary = {
-        "published_rows": len(published_rows),
+        "direct_route_mappings": len(route_matches),
+        "published_timetable_rows": len(published_rows),
         "published_trip_patterns": len(published_groups),
-        "derived_rows": len(derived_rows),
+        "derived_schedule_rows": len(derived_rows),
         "derived_trip_patterns": len(derived_groups),
-        "public_routes": len(public_routes),
-        "rideguide_routes": len(rideguide_routes),
-        "high_confidence_route_matches": sum(1 for row in top_routes if row["confidence"] == "high"),
-        "medium_confidence_route_matches": sum(1 for row in top_routes if row["confidence"] == "medium"),
-        "low_confidence_route_matches": sum(1 for row in top_routes if row["confidence"] == "low"),
-        "note": "Candidate matching only. Confirm top mappings before treating them as canonical machine-ID links.",
+        "trip_candidates_written": len(trip_matches),
+        "high_confidence_trip_matches": sum(1 for row in trip_matches if row["confidence"] == "high"),
+        "medium_confidence_trip_matches": sum(1 for row in trip_matches if row["confidence"] == "medium"),
+        "note": (
+            "Route mappings are direct from current BusLink timetable links. "
+            "Trip matching is only attempted inside those known route mappings."
+        ),
     }
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "match_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
