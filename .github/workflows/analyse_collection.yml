@@ -7,6 +7,8 @@ on:
       - "analysis/collection_health.py"
       - "analysis/build_realtime_catalogue.py"
       - "analysis/download_recent_artifacts.py"
+      - "analysis/import_nrc_stops.py"
+      - "analysis/enrich_stops_with_nrc.py"
       - ".github/workflows/analyse_collection.yml"
   schedule:
     - cron: "40 16 * * *"
@@ -55,6 +57,18 @@ jobs:
           --input data/artifacts
           --output-dir data/realtime_catalogue
 
+      - name: Import NRC CityLink stop names
+        run: >-
+          python analysis/import_nrc_stops.py
+          --output-dir data/nrc_stops
+
+      - name: Enrich Ride Guide stops with NRC names
+        run: >-
+          python analysis/enrich_stops_with_nrc.py
+          --rideguide-stops data/realtime_catalogue/stop_catalogue.csv
+          --nrc-stops data/nrc_stops/nrc_citylink_stops.csv
+          --output data/realtime_catalogue/stop_catalogue_enriched.csv
+
       - name: Show summaries
         run: |
           cat data/collection_health/collection_health_summary.json
@@ -67,5 +81,6 @@ jobs:
           path: |
             data/collection_health/*
             data/realtime_catalogue/*
+            data/nrc_stops/*
           retention-days: 90
           if-no-files-found: error
