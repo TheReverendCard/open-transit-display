@@ -1,0 +1,59 @@
+name: Compare timetable and realtime trips
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "analysis/compare_timetable_realtime.py"
+      - ".github/workflows/compare_timetable_realtime.yml"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install requests
+        run: pip install requests
+
+      - name: Compare timetable trip IDs with recent realtime data
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python analysis/compare_timetable_realtime.py
+          --collector-days 3
+          --output-dir data/timetable_realtime_compare
+
+      - name: Show comparison summary
+        run: cat data/timetable_realtime_compare/summary.json
+
+      - name: Show route summary
+        run: cat data/timetable_realtime_compare/route_summary.csv
+
+      - name: Upload comparison results
+        uses: actions/upload-artifact@v4
+        with:
+          name: timetable-realtime-compare-${{ github.run_id }}
+          path: data/timetable_realtime_compare/*.csv
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Upload comparison summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: timetable-realtime-summary-${{ github.run_id }}
+          path: data/timetable_realtime_compare/summary.json
+          retention-days: 90
+          if-no-files-found: error
