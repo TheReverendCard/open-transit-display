@@ -16,6 +16,8 @@ jobs:
   import:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      RIDEGUIDE_API_KEY: ${{ secrets.buslink_timetable }}
 
     steps:
       - name: Check out repository
