@@ -38,6 +38,14 @@ from urllib.request import Request, urlopen
 
 
 API_URL = "https://api.app.ride.guide/v2/timetable"
+APP_ORIGIN = "https://app.ride.guide"
+APP_REFERER = "https://app.ride.guide/"
+BROWSER_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/153.0.0.0 Safari/537.36"
+)
+
 ROUTES: Dict[str, Tuple[str, str]] = {
     "1102": ("2", "Onerahi"),
     "1103": ("3", "Tikipunga (via Kamo)"),
@@ -117,14 +125,22 @@ def fetch_timetable(route_id: str, service_date: date, timeout: float) -> Dict[s
     request = Request(
         url,
         headers={
-            "Accept": "application/json",
-            "User-Agent": "open-transit-display/1.0 (+https://github.com/TheReverendCard/open-transit-display)",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "en-NZ,en;q=0.9",
+            "Origin": APP_ORIGIN,
+            "Referer": APP_REFERER,
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-site",
+            "User-Agent": BROWSER_USER_AGENT,
         },
     )
     with urlopen(request, timeout=timeout) as response:
         payload = json.loads(response.read().decode("utf-8"))
     if not isinstance(payload, dict):
-        raise ValueError(f"Unexpected response type for route {route_id} on {service_date}: {type(payload)}")
+        raise ValueError(
+            f"Unexpected response type for route {route_id} on {service_date}: {type(payload)}"
+        )
     return payload
 
 
@@ -252,8 +268,26 @@ def normalize(payloads: List[Tuple[date, str, Dict[str, Any]]]) -> Tuple[List[Di
     return (
         sorted(route_rows.values(), key=lambda row: (row["service_date"], int(row["route_id"]))),
         sorted(stop_rows.values(), key=lambda row: row["stop_id"]),
-        sorted(trip_rows.values(), key=lambda row: (row["service_date"], int(row["route_id"]), int(row["direction_id"]), row["first_time"], row["trip_id"])),
-        sorted(stop_time_rows, key=lambda row: (row["service_date"], int(row["route_id"]), int(row["direction_id"]), row["trip_id"], int(row["stop_sequence"]))),
+        sorted(
+            trip_rows.values(),
+            key=lambda row: (
+                row["service_date"],
+                int(row["route_id"]),
+                int(row["direction_id"]),
+                row["first_time"],
+                row["trip_id"],
+            ),
+        ),
+        sorted(
+            stop_time_rows,
+            key=lambda row: (
+                row["service_date"],
+                int(row["route_id"]),
+                int(row["direction_id"]),
+                row["trip_id"],
+                int(row["stop_sequence"]),
+            ),
+        ),
         sorted(service_rows, key=lambda row: (row["service_date"], int(row["route_id"]))),
     )
 
@@ -286,7 +320,10 @@ def main() -> None:
                 date_dir = raw_dir / service_date.strftime("%Y%m%d")
                 date_dir.mkdir(parents=True, exist_ok=True)
                 raw_path = date_dir / f"{route_id}.json"
-                raw_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+                raw_path.write_text(
+                    json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+                    encoding="utf-8",
+                )
                 payloads.append((service_date, route_id, payload))
                 print(f"OK {route_id} {service_date} -> {raw_path}")
             if args.delay_seconds > 0:
@@ -297,27 +334,79 @@ def main() -> None:
     write_csv(
         output_dir / "routes.csv",
         routes,
-        ["service_date", "agency_id", "route_id", "route_short_name", "route_long_name", "route_color", "route_text_color"],
+        [
+            "service_date",
+            "agency_id",
+            "route_id",
+            "route_short_name",
+            "route_long_name",
+            "route_color",
+            "route_text_color",
+        ],
     )
     write_csv(
         output_dir / "stops.csv",
         stops,
-        ["stop_id", "stop_code", "stop_name", "latitude", "longitude", "paired_stop_id", "is_primary", "timepoint_seen"],
+        [
+            "stop_id",
+            "stop_code",
+            "stop_name",
+            "latitude",
+            "longitude",
+            "paired_stop_id",
+            "is_primary",
+            "timepoint_seen",
+        ],
     )
     write_csv(
         output_dir / "trips.csv",
         trips,
-        ["service_date", "route_id", "route_short_name", "route_long_name", "direction_id", "direction_name", "trip_id", "first_stop_id", "first_time", "last_stop_id", "last_time", "stop_count"],
+        [
+            "service_date",
+            "route_id",
+            "route_short_name",
+            "route_long_name",
+            "direction_id",
+            "direction_name",
+            "trip_id",
+            "first_stop_id",
+            "first_time",
+            "last_stop_id",
+            "last_time",
+            "stop_count",
+        ],
     )
     write_csv(
         output_dir / "stop_times.csv",
         stop_times,
-        ["service_date", "route_id", "route_short_name", "direction_id", "direction_name", "trip_id", "stop_id", "stop_sequence", "scheduled_time", "timepoint", "pickup_type", "drop_off_type"],
+        [
+            "service_date",
+            "route_id",
+            "route_short_name",
+            "direction_id",
+            "direction_name",
+            "trip_id",
+            "stop_id",
+            "stop_sequence",
+            "scheduled_time",
+            "timepoint",
+            "pickup_type",
+            "drop_off_type",
+        ],
     )
     write_csv(
         output_dir / "service_dates.csv",
         service_dates,
-        ["service_date", "weekday", "route_id", "route_short_name", "route_long_name", "trip_count", "direction_count", "direction_names"],
+        [
+            "service_date",
+            "weekday",
+            "route_id",
+            "route_short_name",
+            "route_long_name",
+            "trip_count",
+            "direction_count",
+            "direction_names",
+        ],
     )
 
     summary = {
@@ -333,6 +422,11 @@ def main() -> None:
         "trips": len(trips),
         "stop_times": len(stop_times),
         "errors": errors,
+        "request_context": {
+            "origin": APP_ORIGIN,
+            "referer": APP_REFERER,
+            "browser_like_headers": True,
+        },
         "note": "Current date-specific passenger timetable data from Ride Guide; not an archived PDF and not inferred from realtime observations.",
     }
     (output_dir / "import_summary.json").write_text(
