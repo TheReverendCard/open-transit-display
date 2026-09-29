@@ -1,0 +1,41 @@
+name: Collect realtime transit data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Collect Ride Guide GTFS-Realtime
+        env:
+          RUN_SECONDS: "600"
+          OUTPUT_DIR: data/run
+        run: python collector/collect_rideguide.py
+
+      - name: Upload collected observations
+        uses: actions/upload-artifact@v4
+        with:
+          name: collector-${{ github.run_id }}
+          path: data/run/*.jsonl.gz
+          retention-days: 90
+          if-no-files-found: error
