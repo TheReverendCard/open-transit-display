@@ -1,0 +1,38 @@
+name: Import NRC ArcGIS transit data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 15 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download NRC bus route open data
+        run: python analysis/import_nrc_arcgis.py --output-dir data/nrc_arcgis
+
+      - name: Upload NRC ArcGIS outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: nrc-arcgis-${{ github.run_id }}
+          path: data/nrc_arcgis/*
+          retention-days: 90
+          if-no-files-found: error
