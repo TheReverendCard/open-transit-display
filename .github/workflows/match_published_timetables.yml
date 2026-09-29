@@ -1,0 +1,65 @@
+name: Match published CityLink timetables
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "25 16 * * *"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  match:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Scrape published BusLink CityLink timetables
+        run: >-
+          python analysis/scrape_buslink_timetables.py
+          --output-dir data/published_timetables
+
+      - name: Download recent Ride Guide collector artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARTIFACT_DAYS: "14"
+          ARTIFACT_OUTPUT_DIR: data/artifacts
+        run: python analysis/download_recent_artifacts.py
+
+      - name: Infer provisional Ride Guide schedule
+        run: >-
+          python analysis/infer_schedule_from_realtime.py
+          --input data/artifacts
+          --output-dir data/derived_schedule
+          --timezone Pacific/Auckland
+
+      - name: Match published timetable against Ride Guide IDs
+        run: >-
+          python analysis/match_published_timetables.py
+          --published data/published_timetables/published_timetable.csv
+          --derived data/derived_schedule/derived_schedule.csv
+          --output-dir data/timetable_matches
+
+      - name: Upload timetable matching outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: timetable-match-${{ github.run_id }}
+          path: |
+            data/published_timetables/*
+            data/derived_schedule/*
+            data/timetable_matches/*
+          retention-days: 90
+          if-no-files-found: error
