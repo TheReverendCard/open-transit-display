@@ -1,0 +1,71 @@
+name: Analyse Ride Guide collection
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "analysis/collection_health.py"
+      - "analysis/build_realtime_catalogue.py"
+      - "analysis/download_recent_artifacts.py"
+      - ".github/workflows/analyse_collection.yml"
+  schedule:
+    - cron: "40 16 * * *"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  analyse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Download recent collector artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARTIFACT_DAYS: "14"
+          ARTIFACT_OUTPUT_DIR: data/artifacts
+        run: python analysis/download_recent_artifacts.py
+
+      - name: Build collection health report
+        run: >-
+          python analysis/collection_health.py
+          --input data/artifacts
+          --output-dir data/collection_health
+          --timezone Pacific/Auckland
+          --gap-threshold-seconds 30
+          --nominal-interval-seconds 10
+
+      - name: Build realtime route trip stop catalogue
+        run: >-
+          python analysis/build_realtime_catalogue.py
+          --input data/artifacts
+          --output-dir data/realtime_catalogue
+
+      - name: Show summaries
+        run: |
+          cat data/collection_health/collection_health_summary.json
+          cat data/realtime_catalogue/catalogue_summary.json
+
+      - name: Upload analysis outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: collection-analysis-${{ github.run_id }}
+          path: |
+            data/collection_health/*
+            data/realtime_catalogue/*
+          retention-days: 90
+          if-no-files-found: error
