@@ -33,6 +33,17 @@ from typing import Any, Dict, Iterable, List, Tuple
 from zoneinfo import ZoneInfo
 
 
+WEEKDAY_NAMES = (
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Infer a provisional schedule from Ride Guide realtime data.")
     parser.add_argument("--input", required=True, help="Collector file or directory containing .jsonl/.jsonl.gz files")
@@ -170,7 +181,7 @@ def main() -> None:
                     "route_id": route_id,
                     "trip_id": trip_id,
                     "weekday": weekday,
-                    "weekday_name": local_dt.strftime("%A"),
+                    "weekday_name": WEEKDAY_NAMES[weekday],
                     "vehicle_ids": set(),
                     "service_dates": set(),
                 })
@@ -187,7 +198,7 @@ def main() -> None:
         spread = statistics.median(diffs) if diffs else 0.0
         max_dev = max(diffs) if diffs else 0
         confidence = confidence_label(len(dates), spread, len(vals), args.min_days)
-        weekday_name = datetime(2026, 9, 28 + weekday).strftime("%A")
+        weekday_name = WEEKDAY_NAMES[weekday]
 
         derived_rows.append({
             "source": "derived_from_rideguide_schedule_based",
