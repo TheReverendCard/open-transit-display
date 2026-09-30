@@ -9,6 +9,7 @@ on:
       - 'collector/seal_site_credentials.py'
       - 'collector/site-feed-public-key.json'
       - 'collector/prepare_feed_publication.py'
+      - 'collector/fetch_public_feeds.py'
       - 'collector/service_windows.py'
       - 'collector/build_derived_gtfs.py'
       - '.github/workflows/publish_feed_snapshots.yml'
@@ -49,6 +50,7 @@ jobs:
               python collector/build_derived_gtfs.py --raw data/rideguide_timetables/raw --output data/citylink || echo 'Retaining previous CityLink snapshot'
             fi
           fi
+          python collector/fetch_public_feeds.py
           python collector/prepare_feed_publication.py
           python collector/seal_site_credentials.py
       - name: Publish data branch without plaintext credentials
