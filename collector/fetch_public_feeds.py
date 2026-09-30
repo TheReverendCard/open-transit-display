@@ -12,6 +12,7 @@ from fetch_metro import validate_static
 from service_windows import windows, rows
 
 PROVIDERS = {
+    'hawkesbay': ("Hawke's Bay Regional Council / goBay", 'https://www.gobay.co.nz/assets/HBRC-GTFS-January-2026.zip'),
     'waikato': ('Waikato Regional Council / BUSIT', 'https://wrcscheduledata.blob.core.windows.net/wrcgtfs/busit-nz-public.zip'),
     'bayofplenty': ('Bay of Plenty Regional Council / Baybus', 'https://s3.ap-southeast-2.amazonaws.com/gtfs.dynamis.live/boprc/prod/boprc-nz.zip'),
     'taranaki': ('Taranaki Regional Council / Taranaki Buses', 'https://data.trilliumtransit.com/gtfs/trc-nz/trc-nz.zip'),
