@@ -74,10 +74,12 @@ def normalize_live(payload):
 
 def main():
     parser = argparse.ArgumentParser(); parser.add_argument('--provider', choices=PROVIDERS, required=True)
+    parser.add_argument('--static-only', action='store_true')
     args = parser.parse_args(); output = Path('data') / args.provider; output.mkdir(parents=True, exist_ok=True)
     summary = {'provider': args.provider, 'attribution': PROVIDERS[args.provider]['label'],
                'fetched_at_utc': datetime.now(timezone.utc).isoformat(), 'feeds': {}}
     for name, live in [('static', False), ('trip_updates', True)]:
+        if args.static_only and live: continue
         try:
             payload, slot = fetch(args.provider, live)
             if live: payload, details = normalize_live(payload)

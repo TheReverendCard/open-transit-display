@@ -9,6 +9,8 @@ on:
       - 'collector/seal_site_credentials.py'
       - 'collector/site-feed-public-key.json'
       - 'collector/prepare_feed_publication.py'
+      - 'collector/service_windows.py'
+      - 'collector/build_derived_gtfs.py'
       - '.github/workflows/publish_feed_snapshots.yml'
 permissions:
   contents: write
@@ -25,6 +27,7 @@ jobs:
       AUCKLAND_TRANSPORT_PRIMARY: ${{ secrets.AUCKLAND_TRANSPORT_PRIMARY }}
       AUCKLAND_TRANSPORT_SECONDARY: ${{ secrets.AUCKLAND_TRANSPORT_SECONDARY }}
       METLINK: ${{ secrets.METLINK }}
+      RIDEGUIDE_API_KEY: ${{ secrets.buslink_timetable }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -32,11 +35,20 @@ jobs:
           python-version: '3.12'
       - name: Install feed validation and encryption libraries
         run: python -m pip install gtfs-realtime-bindings cryptography
+      - name: Test feed adapters
+        run: python -m unittest discover -s tests -p 'test_*.py'
       - name: Download and validate timetable snapshots
         run: |
-          python collector/fetch_metro.py || true
-          python collector/fetch_standard_feeds.py --provider auckland || true
-          python collector/fetch_standard_feeds.py --provider metlink || true
+          python collector/fetch_metro.py --static-only || true
+          python collector/fetch_standard_feeds.py --provider auckland --static-only || true
+          python collector/fetch_standard_feeds.py --provider metlink --static-only || true
+          date_args=()
+          for offset in {-1..7}; do date_args+=(--date "$(TZ=Pacific/Auckland date -d "$offset days" +%F)"); done
+          if python analysis/import_rideguide_timetables.py "${date_args[@]}" --output-dir data/rideguide_timetables --delay-seconds 0.35; then
+            if python -c "import json; s=json.load(open('data/rideguide_timetables/import_summary.json')); assert s['responses_failed']==0, 'Incomplete CityLink snapshot'"; then
+              python collector/build_derived_gtfs.py --raw data/rideguide_timetables/raw --output data/citylink || echo 'Retaining previous CityLink snapshot'
+            fi
+          fi
           python collector/prepare_feed_publication.py
           python collector/seal_site_credentials.py
       - name: Publish data branch without plaintext credentials

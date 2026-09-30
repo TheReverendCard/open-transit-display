@@ -79,6 +79,7 @@ def main():
     summary = {'fetched_at_utc': datetime.now(timezone.utc).isoformat(),
                'source': BASE, 'attribution': 'Environment Canterbury, CC BY 4.0', 'feeds': {}}
     for name, (path, filename, limit) in FEEDS.items():
+        if '--static-only' in sys.argv and name != 'static': continue
         try:
             payload, used = fetch_feed(path, keys, limit)
             details = validate_static(payload) if name == 'static' else validate_live(payload)
