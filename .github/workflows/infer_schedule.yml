@@ -2,6 +2,10 @@ name: Infer provisional schedule from realtime
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - "analysis/infer_schedule_from_realtime.py"
+      - ".github/workflows/infer_schedule.yml"
   schedule:
     - cron: "35 13 * * *"
 
