@@ -1,0 +1,17 @@
+{
+  "provider": "auckland",
+  "fetched_at": "2026-09-30T21:23:25.718118+00:00",
+  "sha256": "753ad236994319f8c49f3051a718fdb6eeee6feecd23cf639c962f191354ac76",
+  "bytes": 28728739,
+  "tables": {
+    "ok": true,
+    "key_slot": "public",
+    "bytes": 28728739,
+    "agency.txt": 17,
+    "routes.txt": 215,
+    "stop_times.txt": 1163934,
+    "stops.txt": 7010,
+    "trips.txt": 37894
+  },
+  "attribution": "Auckland Transport"
+}

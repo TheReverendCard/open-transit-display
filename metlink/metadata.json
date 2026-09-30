@@ -1,0 +1,17 @@
+{
+  "provider": "metlink",
+  "fetched_at": "2026-09-30T21:23:53.694925+00:00",
+  "sha256": "3fd7c1de9d457880933859ae57cb4685a55a834ba7205ce431216abb6c75edda",
+  "bytes": 19475191,
+  "tables": {
+    "ok": true,
+    "key_slot": "public",
+    "bytes": 19475191,
+    "agency.txt": 23,
+    "routes.txt": 245,
+    "stop_times.txt": 664608,
+    "stops.txt": 3148,
+    "trips.txt": 19157
+  },
+  "attribution": "Greater Wellington Regional Council / Metlink"
+}

@@ -1,0 +1,17 @@
+{
+  "provider": "metro",
+  "fetched_at": "2026-09-30T21:23:16.731769+00:00",
+  "sha256": "0fa6573337c2bf2d5f404cf5340588fabd4f6a8dc8a672fd0ed6848e8c776e83",
+  "bytes": 4366814,
+  "tables": {
+    "ok": true,
+    "key_slot": "primary",
+    "bytes": 4366814,
+    "agency.txt": 1,
+    "routes.txt": 60,
+    "stop_times.txt": 315865,
+    "stops.txt": 2085,
+    "trips.txt": 4701
+  },
+  "attribution": "Environment Canterbury, CC BY 4.0"
+}
