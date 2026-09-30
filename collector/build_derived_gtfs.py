@@ -44,7 +44,7 @@ def build(raw,output):
                                        'stop_name':stop['name'],'stop_lat':lat,'stop_lon':lon,'location_type':0}
             for trip in direction.get('trips',[]):
                 source_id=str(trip['tripId']);trip_id=f"{route}:{direction['id']}:{source_id}:{day}"
-                rows=trip.get('stopTimes',[])
+                rows=[row for row in trip.get('stopTimes',[]) if isinstance(row,dict)]
                 if len(rows)<2: continue
                 if any(not row.get('time') or str(row['id']) not in stops for row in rows): raise ValueError('Trip has incomplete stop times')
                 previous=-1; elapsed=-1

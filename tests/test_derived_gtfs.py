@@ -21,7 +21,7 @@ class DerivedTests(unittest.TestCase):
                 day=(today+timedelta(days=offset)).strftime('%Y%m%d');folder=raw/day;folder.mkdir(parents=True)
                 payload={'date':day,'routeId':'r','routeShortName':'2','routeLongName':'Route', 'directions':[{'id':0,'directionName':'Out',
                   'stops':[{'id':'a','name':'A','location':[174.3,-35.7]},{'id':'b','name':'B','location':[174.31,-35.7]}],
-                  'trips':[{'tripId':'t','stopTimes':[{'id':'a','time':'08:00:00','sequence':1,'timepoint':True},{'id':'b','time':'08:30:00','sequence':2,'timepoint':True}]}]}]}
+                  'trips':[{'tripId':'t','stopTimes':[None,{'id':'a','time':'08:00:00','sequence':1,'timepoint':True},{'id':'b','time':'08:30:00','sequence':2,'timepoint':True}]}]}]}
                 (folder/'r.json').write_text(json.dumps(payload))
             summary=build(raw,out);self.assertEqual(summary['feeds']['static']['trips.txt'],2)
             with zipfile.ZipFile(out/'gtfs.zip') as archive:
