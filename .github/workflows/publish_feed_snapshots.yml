@@ -1,0 +1,68 @@
+name: Publish nightly timetable snapshots for the website
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '35 13 * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'collector/seal_site_credentials.py'
+      - 'collector/site-feed-public-key.json'
+      - 'collector/prepare_feed_publication.py'
+      - '.github/workflows/publish_feed_snapshots.yml'
+permissions:
+  contents: write
+concurrency:
+  group: feed-snapshot-publication
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      METRO_LIVE_FEED_PRIMARY: ${{ secrets.METRO_LIVE_FEED_PRIMARY }}
+      METRO_LIVE_FEED_SECONDARY: ${{ secrets.METRO_LIVE_FEED_SECONDARY }}
+      AUCKLAND_TRANSPORT_PRIMARY: ${{ secrets.AUCKLAND_TRANSPORT_PRIMARY }}
+      AUCKLAND_TRANSPORT_SECONDARY: ${{ secrets.AUCKLAND_TRANSPORT_SECONDARY }}
+      METLINK: ${{ secrets.METLINK }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install feed validation and encryption libraries
+        run: python -m pip install gtfs-realtime-bindings cryptography
+      - name: Download and validate timetable snapshots
+        run: |
+          python collector/fetch_metro.py || true
+          python collector/fetch_standard_feeds.py --provider auckland || true
+          python collector/fetch_standard_feeds.py --provider metlink || true
+          python collector/prepare_feed_publication.py
+          python collector/seal_site_credentials.py
+      - name: Publish data branch without plaintext credentials
+        run: |
+          publication="$RUNNER_TEMP/transit-feed-publication"
+          if git fetch origin feed-data; then
+            git worktree add --detach "$publication" FETCH_HEAD
+            git -C "$publication" checkout -B feed-data
+          else
+            git worktree add --detach "$publication" HEAD
+            git -C "$publication" checkout --orphan feed-data
+            git -C "$publication" rm -rf .
+          fi
+          cp -R data/publication/. "$publication/"
+          git -C "$publication" config user.name 'github-actions[bot]'
+          git -C "$publication" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C "$publication" add .
+          if ! git -C "$publication" diff --cached --quiet; then
+            git -C "$publication" commit -m 'Refresh verified timetable snapshots and encrypted feed credentials'
+            git -C "$publication" push origin HEAD:refs/heads/feed-data
+          fi
+      - name: Save connection reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-feed-reports-${{ github.run_id }}
+          path: data/*/connection-summary.json
+          retention-days: 30
+          if-no-files-found: warn
