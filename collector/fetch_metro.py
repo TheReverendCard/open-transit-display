@@ -45,13 +45,13 @@ def fetch_feed(path, keys, limit, open_url=urllib.request.urlopen):
     raise RuntimeError('Metro subscription keys unavailable')
 
 
-def validate_static(payload):
+def validate_static(payload, expanded_limit=128 * 1024 * 1024):
     with zipfile.ZipFile(io.BytesIO(payload)) as archive:
         names = set(archive.namelist())
         required = {'agency.txt', 'routes.txt', 'stops.txt', 'trips.txt', 'stop_times.txt'}
         if not required <= names or not {'calendar.txt', 'calendar_dates.txt'} & names:
             raise RuntimeError('Incomplete GTFS timetable ZIP')
-        if sum(f.file_size for f in archive.infolist()) > 128 * 1024 * 1024:
+        if sum(f.file_size for f in archive.infolist()) > expanded_limit:
             raise RuntimeError('Expanded timetable exceeds size limit')
         if archive.testzip():
             raise RuntimeError('GTFS timetable CRC check failed')
