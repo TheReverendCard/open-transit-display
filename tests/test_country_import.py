@@ -33,3 +33,13 @@ with tempfile.TemporaryDirectory() as tmp:
  with patch.object(c,'download',side_effect=fail):c.mirror('US',{'countries':{'US':sources[::-1]}},out,prev)
  assert calls[0]==sources[0]['source_url']
  print('Pending sources progress and oldest verified snapshots refresh first.')
+
+# Visitor-selected sources are attempted before a full batch of pending feeds.
+with tempfile.TemporaryDirectory() as tmp:
+ out=Path(tmp)/'out';calls=[]
+ with patch.object(c,'download',side_effect=fail):c.mirror('US',{'countries':{'US':sources}},out,selected_source=sources[-1]['id'])
+ assert calls[0]==sources[-1]['source_url'] and len(calls)==20
+ try:c.mirror('US',{'countries':{'US':sources}},out,selected_source='mx_mexico')
+ except ValueError:pass
+ else:raise AssertionError('Cross-country selected source was accepted')
+ print('Selected-source priority and country membership passed.')
