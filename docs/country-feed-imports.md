@@ -6,7 +6,7 @@ The site ships a fallback Transitous catalogue and reads the refreshed catalogue
 
 ## Activation
 
-Create a fine-grained GitHub token scoped to **TheReverendCard/open-transit-display**, with **Actions: read and write**, and add it as repository Actions secret **GITHUB_COUNTRY_IMPORT_TOKEN**. Run the existing `Publish feed snapshots` workflow once to include it in the encrypted credential handoff. The site's existing RSA key decrypts it only on the server. The same name can alternatively be configured directly as a Site runtime secret. Never put it into client code or a public file.
+Create a fine-grained GitHub token scoped to **TheReverendCard/open-transit-display**, with **Actions: read and write**, and add it as repository Actions secret **GITHUB_COUNTRY_IMPORT_TOKEN**. Run the existing `Publish nightly timetable snapshots for the website` workflow once to include it in the encrypted credential handoff. The site's existing RSA key decrypts it only on the server. The same name can alternatively be configured directly as a Site runtime secret. Never put it into client code or a public file.
 
 Without this credential, the source catalogue and already mirrored timetables work, but visitor-triggered imports cannot run. An owner can still run the country import workflow manually, supplying an uppercase ISO country code.
 
