@@ -14,6 +14,7 @@ on:
     branches: [main]
     paths:
       - 'collector/import_transitous_country.py'
+      - 'collector/fetch_public_feeds.py'
       - '.github/workflows/import_country_feeds.yml'
   schedule:
     - cron: '45 13 * * *'
@@ -49,7 +50,7 @@ jobs:
           if country:
               if not re.fullmatch('[A-Z]{2}',country):raise SystemExit('Invalid country code')
               countries=[country]
-          elif os.environ['GITHUB_EVENT_NAME']=='push':countries=['NZ']
+          elif os.environ['GITHUB_EVENT_NAME']=='push':countries=sorted({'NZ'}|{p.parent.name for p in root.glob('countries/*/index.json')})
           else:
               files=sorted(root.glob('countries/*/index.json'),key=lambda p:json.loads(p.read_text()).get('updated_at',''))
               countries=[p.parent.name for p in files[:2]]
