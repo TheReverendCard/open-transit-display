@@ -72,7 +72,17 @@ def mirror(country, catalog, output, previous=None, max_bytes=256*1024*1024, sel
             import shutil
             shutil.rmtree(output/'feeds'/source['id'], ignore_errors=True)
             record = old.get(source['id'], {**record, 'status': 'unavailable'})
-            print(source['id'], type(error).__name__)
+            reasons = {
+                'No scheduled service in the next ten days': 'no_current_service',
+                'No valid boarding points': 'no_boarding_stops',
+                'Incomplete GTFS timetable ZIP': 'incomplete_gtfs',
+                'Expanded timetable exceeds size limit': 'expanded_size_limit',
+                'Feed exceeds publication size limit': 'download_size_limit',
+                'GTFS timetable CRC check failed': 'corrupt_gtfs',
+            }
+            reason = reasons.get(str(error), 'validation_or_download_failed')
+            record = {**record, 'last_attempt_at': datetime.now(timezone.utc).isoformat(), 'failure_reason': reason}
+            print(source['id'], type(error).__name__, reason)
         records.append(record)
     output.mkdir(parents=True, exist_ok=True)
     (output/'index.json').write_text(json.dumps({'country': country, 'updated_at': datetime.now(timezone.utc).isoformat(), 'feeds': records}, separators=(',', ':')))
