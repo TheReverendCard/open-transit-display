@@ -1,0 +1,65 @@
+name: Import country timetable snapshots
+on:
+  workflow_dispatch:
+    inputs:
+      country:
+        description: ISO country code
+        required: true
+        type: string
+  push:
+    branches: [main]
+    paths:
+      - 'collector/import_transitous_country.py'
+      - '.github/workflows/import_country_feeds.yml'
+  schedule:
+    - cron: '45 13 * * *'
+permissions:
+  contents: write
+concurrency:
+  group: feed-snapshot-publication
+  cancel-in-progress: false
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      REQUESTED_COUNTRY: ${{ inputs.country }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Open published data
+        run: |
+          git fetch origin feed-data
+          git worktree add --detach "$RUNNER_TEMP/country-feeds" FETCH_HEAD
+          git -C "$RUNNER_TEMP/country-feeds" checkout -B feed-data
+      - name: Import selected or previously activated countries
+        run: |
+          python - <<'PY'
+          import os,re,json,subprocess
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'country-feeds'
+          country=os.environ.get('REQUESTED_COUNTRY','')
+          if country:
+              if not re.fullmatch('[A-Z]{2}',country):raise SystemExit('Invalid country code')
+              countries=[country]
+          elif os.environ['GITHUB_EVENT_NAME']=='push':countries=['NZ']
+          else:
+              files=sorted(root.glob('countries/*/index.json'),key=lambda p:json.loads(p.read_text()).get('updated_at',''))
+              countries=[p.parent.name for p in files[:2]]
+          if not countries:
+              subprocess.run(['python','collector/import_transitous_country.py','--catalog-only'],check=True)
+          for code in countries:
+              subprocess.run(['python','collector/import_transitous_country.py','--country',code,'--previous',str(root)],check=True)
+          PY
+      - name: Publish verified snapshots
+        run: |
+          cp -R data/publication/. "$RUNNER_TEMP/country-feeds/"
+          git -C "$RUNNER_TEMP/country-feeds" config user.name 'github-actions[bot]'
+          git -C "$RUNNER_TEMP/country-feeds" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C "$RUNNER_TEMP/country-feeds" add .
+          if ! git -C "$RUNNER_TEMP/country-feeds" diff --cached --quiet; then
+            git -C "$RUNNER_TEMP/country-feeds" commit -m 'Refresh country timetable catalogues and validated GTFS snapshots'
+            git -C "$RUNNER_TEMP/country-feeds" push origin HEAD:refs/heads/feed-data
+          fi
