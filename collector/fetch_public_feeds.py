@@ -21,6 +21,34 @@ PROVIDERS = {
 }
 
 
+def agency_previews(payload):
+    """Compact operator/boarding-stop index; no timetable download needed for discovery."""
+    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+        agencies = rows(archive, 'agency.txt')
+        routes = {r['route_id']: r for r in rows(archive, 'routes.txt')}
+        trips = {r['trip_id']: r for r in rows(archive, 'trips.txt')}
+        stops = {r['stop_id']: r for r in rows(archive, 'stops.txt')}
+        times = {}
+        for r in rows(archive, 'stop_times.txt'): times.setdefault(r['trip_id'], []).append(r)
+        by_agency = {}
+        for trip_id, records in times.items():
+            route = routes.get(trips.get(trip_id, {}).get('route_id'))
+            if not route: continue
+            agency_id = route.get('agency_id') or (agencies[0].get('agency_id') or '0')
+            for r in sorted(records, key=lambda x: int(x['stop_sequence']))[:-1]:
+                stop = stops.get(r['stop_id'])
+                if not stop or r.get('pickup_type') == '1' or stop.get('location_type', '0') not in ('', '0'): continue
+                try: lat, lon = float(stop['stop_lat']), float(stop['stop_lon'])
+                except (ValueError, KeyError): continue
+                if not (math.isfinite(lat) and math.isfinite(lon) and abs(lat)<=90 and abs(lon)<=180): continue
+                item = by_agency.setdefault(agency_id, {}).setdefault(r['stop_id'], {'lat':lat,'lon':lon,'routes':set(),'types':set()})
+                item['routes'].add(route.get('route_short_name') or route.get('route_long_name') or route['route_id'])
+                item['types'].add(int(route.get('route_type') or 3))
+        return [{'id': a.get('agency_id') or str(i), 'name': a['agency_name'], 'url': a.get('agency_url',''),
+                 'timezone': a['agency_timezone'],
+                 'stops': [[s['lat'],s['lon'],sorted(s['routes']),sorted(s['types'])] for s in by_agency.get(a.get('agency_id') or str(i), {}).values()]}
+                for i,a in enumerate(agencies) if by_agency.get(a.get('agency_id') or str(i))]
+
 def prepare(provider, payload, output=Path('data/publication')):
     label, url = PROVIDERS[provider]
     counts = validate_static(payload)
@@ -51,7 +79,7 @@ def prepare(provider, payload, output=Path('data/publication')):
     metadata = {'provider': provider, 'fetched_at': datetime.now(timezone.utc).isoformat(),
                 'sha256': hashlib.sha256(payload).hexdigest(), 'bytes': len(payload),
                 'tables': counts, 'attribution': label, 'source_url': url,
-                'service_windows': service, 'boarding_stops': sorted(coordinates)}
+                'service_windows': service, 'boarding_stops': sorted(coordinates), 'agencies': agency_previews(payload)}
     (target / 'metadata.json').write_text(json.dumps(metadata, separators=(',', ':')))
     return metadata
 
