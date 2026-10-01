@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 
 NAMES = ['METRO_LIVE_FEED_PRIMARY', 'METRO_LIVE_FEED_SECONDARY',
-         'AUCKLAND_TRANSPORT_PRIMARY', 'AUCKLAND_TRANSPORT_SECONDARY', 'METLINK']
+         'AUCKLAND_TRANSPORT_PRIMARY', 'AUCKLAND_TRANSPORT_SECONDARY', 'METLINK', 'GITHUB_COUNTRY_IMPORT_TOKEN']
 
 def main():
     settings = json.loads(Path('collector/site-feed-public-key.json').read_text())
