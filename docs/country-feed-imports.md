@@ -6,7 +6,7 @@ The site reads a refreshed Transitous catalogue from `feed-data`, with a bundled
 
 ## Activation
 
-Create a fine-grained token scoped to **TheReverendCard/open-transit-display**, with **Actions: read and write**, and add it as Actions secret **GITHUB_COUNTRY_IMPORT_TOKEN**. Run **Publish nightly timetable snapshots for the website** once to include it in the encrypted credential handoff. The existing RSA key decrypts it only on the server. Alternatively configure the same name directly as a Site runtime secret. Never put credentials into client code or public files.
+Create a fine-grained token scoped to **TheReverendCard/open-transit-display**, with **Actions: read and write**, and add it as Actions secret **COUNTRY_IMPORT_TOKEN**. Run **Publish nightly timetable snapshots for the website** once to include it in the encrypted credential handoff. The existing RSA key decrypts it only on the server. The workflow maps this allowed repository secret name to the internal `GITHUB_COUNTRY_IMPORT_TOKEN` credential. Alternatively configure `GITHUB_COUNTRY_IMPORT_TOKEN` directly as a Site runtime secret. Never put credentials into client code or public files.
 
 Without this credential, source discovery and mirrored timetables work, but visitor-triggered imports cannot start. The page reports that failure without displaying a countdown. Owners can run **Import country timetable snapshots** manually, supplying an uppercase ISO country and optional source ID.
 
