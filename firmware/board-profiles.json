@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "profiles": [
+    {"id": "esp32-dev", "target": "esp32", "status": "compile-scaffold", "display_driver": "GxEPD2", "radio": "external SPI or serial companion", "panel_and_pins_required": true},
+    {"id": "esp32s3-dev", "target": "esp32s3", "status": "compile-scaffold", "display_driver": "GxEPD2", "radio": "external SPI or serial companion", "panel_and_pins_required": true},
+    {"id": "waveshare-esp32", "status": "planned-profile", "display_driver": "GxEPD2_WS_ESP32_Driver example", "panel_and_pins_required": true},
+    {"id": "raspberry-pi-linux", "status": "reference-verifier", "display_driver": "Waveshare e-Paper Python or image renderer", "radio": "USB serial companion preferred", "panel_and_pins_required": true},
+    {"id": "trmnl-800x480", "status": "needs-existing-firmware-integration", "panel_and_pins_required": true}
+  ],
+  "transports": {
+    "wifi": "adapter pending",
+    "meshtastic": "adapter pending",
+    "meshcore": "adapter pending"
+  }
+}

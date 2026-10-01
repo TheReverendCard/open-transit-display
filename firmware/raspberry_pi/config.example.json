@@ -1,0 +1,6 @@
+{
+  "clock_trusted": false,
+  "emergency_enabled": true,
+  "groups": ["nz:northland:stop:11000155"],
+  "authorities": {}
+}
