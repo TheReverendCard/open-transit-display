@@ -4,6 +4,7 @@ import json
 import shutil
 from pathlib import Path
 from service_windows import windows
+from fetch_public_feeds import agency_previews
 
 for provider, directory in [('metro','metro'),('auckland','auckland'),('metlink','metlink'),('citylink','citylink')]:
     source = Path('data') / directory
@@ -17,7 +18,8 @@ for provider, directory in [('metro','metro'),('auckland','auckland'),('metlink'
                 'sha256':hashlib.sha256((target/'gtfs.zip').read_bytes()).hexdigest(),
                 'bytes':(target/'gtfs.zip').stat().st_size,
                 'tables':summary['feeds']['static'], 'attribution':summary['attribution'],
-                'service_windows':windows(target/'gtfs.zip')}
+                'service_windows':windows(target/'gtfs.zip'),
+                'agencies':agency_previews((target/'gtfs.zip').read_bytes())}
     if (source/'trip-map.json').exists(): shutil.copyfile(source/'trip-map.json',target/'trip-map.json')
     (target / 'metadata.json').write_text(json.dumps(metadata, indent=2))
     print(f'Prepared validated {provider} timetable snapshot.')
