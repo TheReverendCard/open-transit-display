@@ -40,8 +40,9 @@ def catalogue(html):
     for record in parser.records.values(): countries.setdefault(record['country'], []).append(record)
     return {'fetched_at': datetime.now(timezone.utc).isoformat(), 'countries': countries}
 
-def mirror(country, catalog, output, previous=None, max_bytes=256*1024*1024):
+def mirror(country, catalog, output, previous=None, max_bytes=256*1024*1024, selected_source=None):
     feeds = catalog['countries'].get(country, [])
+    if selected_source and not any(s['id']==selected_source for s in feeds):raise ValueError('Unknown source for country')
     old = {}
     if previous and (previous/'index.json').exists():
         old = {r['id']: r for r in json.loads((previous/'index.json').read_text()).get('feeds', [])}
@@ -51,7 +52,7 @@ def mirror(country, catalog, output, previous=None, max_bytes=256*1024*1024):
         record = old.get(source['id'], {})
         status = record.get('status', 'pending')
         # Pending sources progress before retries; rotate verified snapshots oldest first.
-        return (0 if status == 'pending' else 1 if status == 'ready' else 2,
+        return (0 if source['id'] == selected_source else 1, 0 if status == 'pending' else 1 if status == 'ready' else 2,
                 record.get('fetched_at', ''), source['id'])
     feeds = sorted(feeds, key=priority)
     for position, source in enumerate(feeds):
@@ -78,13 +79,13 @@ def mirror(country, catalog, output, previous=None, max_bytes=256*1024*1024):
     return records
 
 def main():
-    parser = argparse.ArgumentParser(); parser.add_argument('--country'); parser.add_argument('--catalog-only', action='store_true'); parser.add_argument('--output', default='data/publication'); parser.add_argument('--previous'); args = parser.parse_args()
+    parser = argparse.ArgumentParser(); parser.add_argument('--country'); parser.add_argument('--catalog-only', action='store_true'); parser.add_argument('--output', default='data/publication'); parser.add_argument('--previous'); parser.add_argument('--source'); args = parser.parse_args()
     catalog = catalogue(download('https://transitous.org/sources/', 12*1024*1024).decode())
     output = Path(args.output); output.mkdir(parents=True, exist_ok=True)
     (output/'transitous-source-catalog.json').write_text(json.dumps(catalog, separators=(',', ':')))
     if args.catalog_only: return
     if not args.country or not re.fullmatch('[A-Z]{2}', args.country): raise ValueError('Valid uppercase country code required')
     previous = Path(args.previous)/'countries'/args.country if args.previous else None
-    mirror(args.country, catalog, output/'countries'/args.country, previous)
+    mirror(args.country, catalog, output/'countries'/args.country, previous, selected_source=args.source)
 
 if __name__ == '__main__': main()
