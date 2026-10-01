@@ -1,9 +1,8 @@
 """Publish country-scoped static Transitous snapshots; never poll realtime feeds."""
-import argparse, hashlib, io, json, re, urllib.request, zipfile
+import argparse, json, re, urllib.request
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import urlparse
 from fetch_metro import validate_static
 from fetch_public_feeds import prepare, PROVIDERS
 
@@ -48,7 +47,13 @@ def mirror(country, catalog, output, previous=None, max_bytes=256*1024*1024):
         old = {r['id']: r for r in json.loads((previous/'index.json').read_text()).get('feeds', [])}
     records = []; budget = max_bytes
     # Fill missing feeds first; subsequent scheduled runs continue partially imported countries.
-    feeds = sorted(feeds, key=lambda r: old.get(r['id'],{}).get('status') == 'ready')
+    def priority(source):
+        record = old.get(source['id'], {})
+        status = record.get('status', 'pending')
+        # Pending sources progress before retries; rotate verified snapshots oldest first.
+        return (0 if status == 'pending' else 1 if status == 'ready' else 2,
+                record.get('fetched_at', ''), source['id'])
+    feeds = sorted(feeds, key=priority)
     for position, source in enumerate(feeds):
         record = dict(source)
         if budget <= 0 or position >= 20:
