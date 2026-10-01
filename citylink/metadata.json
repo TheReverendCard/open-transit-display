@@ -1,8 +1,8 @@
 {
   "provider": "citylink",
-  "fetched_at": "2026-10-01T06:36:32.006961+00:00",
-  "sha256": "e7e0034e7288098ef66566b2c413772f60ba0b892c25b5e297be55e4add0ce2f",
-  "bytes": 219183,
+  "fetched_at": "2026-10-01T10:26:43.158679+00:00",
+  "sha256": "ad7309c52dbe1c67ba36cfda96fe89cede03d04c8ae659836ab6bab9409d48f7",
+  "bytes": 219185,
   "tables": {
     "ok": true,
     "routes.txt": 9,
