@@ -4,6 +4,8 @@ Status: reference foundation, not a deployed alert service. No official emergenc
 provider, mail service, production signing key, radio adapter or panel is enabled.
 The hosted layout editor is a separate checkout and is unchanged by this work.
 
+The first reference hardware is now [XIAO ESP32-S3 + B2B Wio-SX1262 + Seeed ePaper Driver Board v2](reference-hardware-seeed-xiao.md). It has a dedicated build target and shared-SPI GPIO profile; exact panel selection and physical tests remain pending.
+
 ## Implemented and prepared
 
 | Component | Status |

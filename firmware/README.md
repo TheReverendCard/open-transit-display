@@ -4,6 +4,8 @@ The first firmware target is a Wi-Fi shop-window display. Hardware selection is 
 
 See [secure notices and firmware preparation](../docs/display-notices-and-firmware.md) for implemented status, transit alert routing, private owner notifications, emergency defaults, expiry and integration gates. See [board profiles](board-profiles.json) before claiming hardware support.
 
+The preferred reference is now **XIAO ESP32-S3 + B2B Wio-SX1262 + Seeed ePaper Driver Board v2**. See its [pin map, build target and assembly notes](../docs/reference-hardware-seeed-xiao.md). The exact display panel remains to be selected; the board is pin-mapped and compiled, not hardware-qualified.
+
 ## Non-negotiable fallback behaviour
 
 Even the simplest Wi-Fi-only unit must retain locally stored data so loss of Wi-Fi, the backend, GitHub-hosted assets, DNS, or the upstream realtime feed does not blank the sign.

@@ -1,9 +1,16 @@
 {
   "version": 1,
   "connection": "wifi",
-  "connection_choices": ["wifi", "lora", "wifi_lora_fallback"],
+  "connection_choices": [
+    "wifi",
+    "lora",
+    "wifi_lora_fallback"
+  ],
   "mesh_protocol": null,
-  "mesh_protocol_choices": ["meshtastic", "meshcore"],
+  "mesh_protocol_choices": [
+    "meshtastic",
+    "meshcore"
+  ],
   "role": "display",
   "features": {
     "transit": true,
@@ -22,6 +29,13 @@
     "max_signed_lifetime_seconds": 3600,
     "show_source_and_expiry": true
   },
-  "provisioning_required": ["board_and_panel", "trusted_clock", "authority_grants", "device_groups"],
-  "status": "installer_contract_not_yet_wired_to_website"
+  "provisioning_required": [
+    "board_and_panel",
+    "trusted_clock",
+    "authority_grants",
+    "device_groups"
+  ],
+  "status": "installer_contract_not_yet_wired_to_website",
+  "hardware_profile": "seeed-xiao-s3-wio-b2b-epaper-v2",
+  "panel_model": null
 }
