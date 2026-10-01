@@ -1,7 +1,7 @@
 {
   "provider": "citylink",
-  "fetched_at": "2026-10-01T06:10:43.580698+00:00",
-  "sha256": "35c099d695b1536fe574124545c63d7a7cc585e0d6b64fc4d8451dedf9e12840",
+  "fetched_at": "2026-10-01T06:33:54.840372+00:00",
+  "sha256": "9fd27da6caf3416db376031decc76602fcef3d79b25eec408a9560918c39e4cc",
   "bytes": 219185,
   "tables": {
     "ok": true,
