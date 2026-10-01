@@ -6,6 +6,10 @@ on:
         description: ISO country code
         required: true
         type: string
+      source_id:
+        description: Optional source to import first
+        required: false
+        type: string
   push:
     branches: [main]
     paths:
@@ -24,6 +28,7 @@ jobs:
     timeout-minutes: 35
     env:
       REQUESTED_COUNTRY: ${{ inputs.country }}
+      REQUESTED_SOURCE: ${{ inputs.source_id }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -50,8 +55,11 @@ jobs:
               countries=[p.parent.name for p in files[:2]]
           if not countries:
               subprocess.run(['python','collector/import_transitous_country.py','--catalog-only'],check=True)
+          source=os.environ.get('REQUESTED_SOURCE','')
           for code in countries:
-              subprocess.run(['python','collector/import_transitous_country.py','--country',code,'--previous',str(root)],check=True)
+              command=['python','collector/import_transitous_country.py','--country',code,'--previous',str(root)]
+              if source:command+=['--source',source]
+              subprocess.run(command,check=True)
           PY
       - name: Publish verified snapshots
         run: |
