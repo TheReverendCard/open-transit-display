@@ -28,7 +28,7 @@ jobs:
       AUCKLAND_TRANSPORT_PRIMARY: ${{ secrets.AUCKLAND_TRANSPORT_PRIMARY }}
       AUCKLAND_TRANSPORT_SECONDARY: ${{ secrets.AUCKLAND_TRANSPORT_SECONDARY }}
       METLINK: ${{ secrets.METLINK }}
-      GITHUB_COUNTRY_IMPORT_TOKEN: ${{ secrets.GITHUB_COUNTRY_IMPORT_TOKEN }}
+      GITHUB_COUNTRY_IMPORT_TOKEN: ${{ secrets.COUNTRY_IMPORT_TOKEN }}
       RIDEGUIDE_API_KEY: ${{ secrets.buslink_timetable }}
     steps:
       - uses: actions/checkout@v4
