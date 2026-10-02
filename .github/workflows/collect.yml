@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - "collector/collect_rideguide.py"
+      - "collector/check_rideguide_health.py"
       - "requirements.txt"
       - ".github/workflows/collect.yml"
   schedule:
@@ -37,10 +38,23 @@ jobs:
           OUTPUT_DIR: data/run
         run: python collector/collect_rideguide.py
 
+      - name: Check Whangārei realtime feed health
+        run: >-
+          python collector/check_rideguide_health.py
+          --input data/run
+          --min-vehicles 1
+          --min-trip-updates 1
+          --min-routes 5
+          --max-feed-age-seconds 300
+          --summary-json data/run/health_summary.json
+
       - name: Upload collected observations
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: collector-${{ github.run_id }}
-          path: data/run/*.jsonl.gz
+          path: |
+            data/run/*.jsonl.gz
+            data/run/health_summary.json
           retention-days: 90
           if-no-files-found: error
