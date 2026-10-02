@@ -4,7 +4,7 @@ Status: reference foundation, not a deployed alert service. No official emergenc
 provider, mail service, production signing key, radio adapter or panel is enabled.
 The hosted layout editor is a separate checkout and is unchanged by this work.
 
-The first reference hardware is now [XIAO ESP32-S3 + B2B Wio-SX1262 + Seeed ePaper Driver Board v2](reference-hardware-seeed-xiao.md). It has a dedicated build target and shared-SPI GPIO profile; exact panel selection and physical tests remain pending.
+The first reference hardware is now [XIAO ESP32-S3 + B2B Wio-SX1262 + Seeed ePaper Driver Board v2](reference-hardware-seeed-xiao.md). It has a dedicated build target and shared-SPI GPIO profile; the selected Seeed 104990861 panel has an isolated Seeed_GFX test target. Physical tests and concurrent radio integration remain pending.
 
 ## Implemented and prepared
 
@@ -210,7 +210,7 @@ The GitHub workflow runs policy tests and both ESP32 compile targets with read-o
 permissions and no secrets. It deliberately does not publish flashable releases.
 
 Next gates, in order: provision a development authority; wire provider adapter and
-private subscription API; choose one exact panel/board; complete panel and radio
+private subscription API; qualify the selected panel/board; complete panel and radio
 adapters; verify signed cross-language packets; exercise expiry, reboot, missing
 RTC, replay, revocation, radio outage and low battery on hardware; review firmware
 update security; then offer supported release manifests in the website installer.

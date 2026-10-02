@@ -45,7 +45,7 @@ the default ESP32 build target and is included in the GitHub compile matrix.
 conflict check. `include/reference_spi.h` starts one SPI bus, deselects both chips
 before bus startup and supplies a FreeRTOS mutex plus a scoped guard. The startup
 diagnostic reports the profile and bus readiness over USB serial. It does not
-initialise a guessed panel driver or transmit radio packets.
+initialise a panel driver or transmit radio packets.
 
 Both eventual drivers must use that same bus and mutex. Lock only SPI work, not
 the entire seconds-long ePaper refresh/BUSY wait. Keep the panel CS inactive while
@@ -61,18 +61,45 @@ integration targets; a RadioLib pin definition alone implements neither protocol
 
 ## Panel selection
 
-The ePaper carrier is not the panel. Its FPC connector supports several controller
-types and resolutions. Keep `panel_model` unset until the screen's printed model
-or product link is known. For the planned 7.5-inch 800x480 monochrome screen, a
-one-bit framebuffer is 48,000 bytes; this is a layout-size calculation, not proof
-of controller compatibility. Tri-colour and different panel revisions need their
-own driver and refresh policy even when dimensions match.
+The reference panel is Seeed **SKU 104990861**, 7.5-inch monochrome 800 × 480.
+Seeed_GFX Setup502 selects the **UC8179** controller for this panel class. This
+product-based configuration still requires a test on the actual panel revision.
+A one-bit framebuffer is 48,000 bytes. Colour variants need separate drivers.
 
-The manufacturer now documents Seeed_GFX with a generated `BOARD_SCREEN_COMBO`
-and `USE_XIAO_EPAPER_BREAKOUT_BOARD`. GxEPD2 remains an alternative after matching
-the exact controller. Do not hard-code the wiki's 2.9-inch example into this
-7.5-inch reference design. The website should select the hardware profile and
-then the supported panel, with mesh protocol/features as subsequent options.
+The isolated `xiao_s3_panel_test` target pins Seeed_GFX to commit
+`0dfdd7135425be82b5bb4b4b58d74dd51ab29a59` and selects:
+
+- `BOARD_SCREEN_COMBO=502`
+- `ENABLE_EPAPER_BOARD_PIN_SETUPS`
+- `USE_XIAO_EPAPER_DRIVER_BOARD`
+
+Do not substitute `USE_XIAO_EPAPER_BREAKOUT_BOARD`: its BUSY pin is D5, whereas
+this carrier uses D2. Compile-time assertions check geometry and carrier pins.
+Seeed_GFX selects its own HSPI instance on the S3. The panel test therefore keeps
+the radio inactive and does not use `ReferenceSpi`. Concurrent panel/radio support
+requires adapting the drivers to one bus and common arbitration before release.
+
+### USB-powered panel test
+
+Connect the panel with power disconnected, then power the board over USB.
+From the repository root, with PlatformIO installed:
+
+```sh
+pio run -d firmware/esp32 -e xiao_s3_panel_test
+pio run -d firmware/esp32 -e xiao_s3_panel_test -t upload
+pio device monitor -b 115200
+```
+
+Send `TEST` followed by a newline. The test attempts one full refresh per boot.
+Check the complete border, distinct corner markers, text orientation and alternating
+black/white bars. Review serial output for driver timeouts; returning from the
+refresh function alone does not establish hardware success. The image explicitly
+says PANEL TEST ONLY. It receives no transit data or emergency notices and does
+not exercise LoRa. No automatic repeat refresh is scheduled.
+
+Record panel markings, carrier revision, power source, driver timeout output and
+a photograph before marking the hardware test passed. The setup flow should offer
+this panel with the reference board and present mesh choices separately.
 
 ## Power and assembly checks
 
@@ -92,6 +119,10 @@ including the carrier's boost circuit, and test low-battery/expiry redraw.
 
 ## Source references
 
+- [Seeed panel SKU 104990861](https://www.seeedstudio.com/7-5-Monochrome-ePaper-Display-with-800x480-Pixels-p-5788.html)
+- [Pinned Seeed_GFX Setup502](https://github.com/Seeed-Studio/Seeed_GFX/blob/0dfdd7135425be82b5bb4b4b58d74dd51ab29a59/User_Setups/Setup502_Seeed_XIAO_EPaper_7inch5.h)
+- [Pinned Seeed carrier pin definitions](https://github.com/Seeed-Studio/Seeed_GFX/blob/0dfdd7135425be82b5bb4b4b58d74dd51ab29a59/User_Setups/EPaper_Board_Pins_Setups.h)
+
 - [Seeed ePaper Driver Board v2 and ePaper pin assignments](https://wiki.seeedstudio.com/xiao_eink_expansion_board_v2/)
 - [Carrier schematic](https://files.seeedstudio.com/wiki/xiao_075inch_epaper_panel/ePaper_Driver_Board.pdf)
 - [Seeed ESP32-S3/Wio B2B kit](https://wiki.seeedstudio.com/xiao_esp32s3_%26_wio_SX1262_kit_for_meshtastic/)
@@ -100,5 +131,5 @@ including the carrier's boost circuit, and test low-battery/expiry redraw.
 - [Meshtastic upstream B2B pin definitions](https://github.com/meshtastic/firmware/blob/develop/variants/esp32s3/seeed_xiao_s3/variant.h)
 - [PlatformIO XIAO ESP32-S3 target](https://docs.platformio.org/en/latest/boards/espressif32/seeed_xiao_esp32s3.html)
 
-Next step: confirm the exact panel, integrate its driver, then perform a USB-powered
-panel/radio coexistence test before enabling signed notice reception on hardware.
+Next step: run the isolated panel test on the physical assembly, integrate shared
+bus access, then test panel/radio coexistence before enabling signed notices.

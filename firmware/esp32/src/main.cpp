@@ -19,7 +19,7 @@ void setup() {
     return;
   }
   Serial.println("Shared SPI ready; display CS=GPIO2, radio CS=GPIO41");
-  Serial.println("Panel model and mesh integration pending; radio transmission disabled");
+  Serial.println("Panel: Seeed 104990861; integrated display/mesh drivers pending; radio disabled");
 #endif
   otd::NoticeState state;
   const auto page = otd::page(state, 0);

@@ -8,11 +8,7 @@
       "controller": "Seeed Studio XIAO ESP32-S3",
       "radio": "Wio-SX1262 for XIAO ESP32-S3, B2B kit version",
       "carrier": "Seeed Studio ePaper Driver Board v2",
-      "panel_model": null,
-      "display_driver_candidates": [
-        "Seeed_GFX",
-        "GxEPD2"
-      ],
+      "panel_model": "seeed-104990861",
       "spi": {
         "sck": 7,
         "miso": 8,
@@ -42,12 +38,21 @@
       ],
       "mesh_integrations_ready": false,
       "mechanical_stack_verified": false,
-      "panel_and_pins_required": true,
+      "panel_and_pins_required": false,
       "sources": [
         "https://wiki.seeedstudio.com/xiao_eink_expansion_board_v2/",
         "https://wiki.seeedstudio.com/xiao_esp32s3_%26_wio_SX1262_kit_for_meshtastic/",
-        "https://github.com/meshtastic/firmware/blob/develop/variants/esp32s3/seeed_xiao_s3/variant.h"
-      ]
+        "https://github.com/meshtastic/firmware/blob/develop/variants/esp32s3/seeed_xiao_s3/variant.h",
+        "https://www.seeedstudio.com/7-5-Monochrome-ePaper-Display-with-800x480-Pixels-p-5788.html"
+      ],
+      "panel_controller": "UC8179",
+      "panel_dimensions": [
+        800,
+        480
+      ],
+      "panel_driver": "Seeed_GFX Setup502",
+      "panel_test_target": "xiao_s3_panel_test",
+      "panel_hardware_test_passed": false
     },
     {
       "id": "esp32-dev",
