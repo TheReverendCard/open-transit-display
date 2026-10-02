@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+.pio/
+device-private/
+*.sqlite3
+*.sqlite3-*

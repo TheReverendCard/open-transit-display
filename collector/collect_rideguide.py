@@ -122,6 +122,9 @@ def alert_text(translated_string):
 
 def alert_to_dict(entity, feed_timestamp, received_at):
     alert = entity.alert
+    # Preserve selector conjunctions and validity for downstream stop/route routing.
+    from google.protobuf.json_format import MessageToDict
+    fields = MessageToDict(alert, preserving_proto_field_name=True)
     return {
         "kind": "alert",
         "source": "rideguide",
@@ -131,6 +134,14 @@ def alert_to_dict(entity, feed_timestamp, received_at):
         "entity_id": entity.id,
         "header": alert_text(alert.header_text),
         "description": alert_text(alert.description_text),
+        "active_period": [
+            {key: int(value) for key, value in period.items()}
+            for period in fields.get("active_period", [])
+        ],
+        "informed_entity": fields.get("informed_entity", []),
+        "effect": fields.get("effect"),
+        "cause": fields.get("cause"),
+        "url": fields.get("url", {}),
     }
 
 

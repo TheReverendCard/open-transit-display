@@ -1,6 +1,10 @@
 # Reference firmware
 
-The first firmware target will be a Wi-Fi shop-window display. Hardware selection is not final yet, so this directory currently defines required behaviour rather than tying the project to one board.
+The first firmware target is a Wi-Fi shop-window display. The reference hardware is selected below; physical qualification remains pending. This directory now includes a portable tested display policy, ESP32/ESP32-S3 compile scaffolds, a Pi/Linux signed-notice reference receiver and an explicit board-support inventory. These are development preparations, not production flashable firmware.
+
+See [secure notices and firmware preparation](../docs/display-notices-and-firmware.md) for implemented status, transit alert routing, private owner notifications, emergency defaults, expiry and integration gates. See [board profiles](board-profiles.json) before claiming hardware support.
+
+The preferred reference is now **XIAO ESP32-S3 + B2B Wio-SX1262 + Seeed ePaper Driver Board v2**. See its [pin map, build target and assembly notes](../docs/reference-hardware-seeed-xiao.md). The reference panel is Seeed SKU **104990861**, 7.5-inch monochrome 800 × 480, using Seeed_GFX Setup502 (UC8179). The isolated `xiao_s3_panel_test` target exercises the display with the radio inactive. Physical qualification and concurrent radio integration remain pending.
 
 ## Non-negotiable fallback behaviour
 

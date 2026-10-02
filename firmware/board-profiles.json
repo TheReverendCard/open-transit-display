@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "profiles": [
+    {
+      "id": "seeed-xiao-s3-wio-b2b-epaper-v2",
+      "target": "xiao_s3_wio_epaper",
+      "status": "pin-mapped-build-target-hardware-test-pending",
+      "controller": "Seeed Studio XIAO ESP32-S3",
+      "radio": "Wio-SX1262 for XIAO ESP32-S3, B2B kit version",
+      "carrier": "Seeed Studio ePaper Driver Board v2",
+      "panel_model": "seeed-104990861",
+      "spi": {
+        "sck": 7,
+        "miso": 8,
+        "mosi": 9,
+        "shared": true
+      },
+      "epaper": {
+        "rst": 1,
+        "cs": 2,
+        "busy": 3,
+        "dc": 4
+      },
+      "sx1262": {
+        "cs": 41,
+        "rst": 42,
+        "busy": 40,
+        "dio1": 39,
+        "rxen": 38,
+        "dio2_rf_switch": true,
+        "tcxo_volts": 1.8
+      },
+      "battery_adc": null,
+      "requires_external_fuel_gauge_for_battery_telemetry": true,
+      "mesh_protocol_choices": [
+        "meshtastic",
+        "meshcore"
+      ],
+      "mesh_integrations_ready": false,
+      "mechanical_stack_verified": false,
+      "panel_and_pins_required": false,
+      "sources": [
+        "https://wiki.seeedstudio.com/xiao_eink_expansion_board_v2/",
+        "https://wiki.seeedstudio.com/xiao_esp32s3_%26_wio_SX1262_kit_for_meshtastic/",
+        "https://github.com/meshtastic/firmware/blob/develop/variants/esp32s3/seeed_xiao_s3/variant.h",
+        "https://www.seeedstudio.com/7-5-Monochrome-ePaper-Display-with-800x480-Pixels-p-5788.html"
+      ],
+      "panel_controller": "UC8179",
+      "panel_dimensions": [
+        800,
+        480
+      ],
+      "panel_driver": "Seeed_GFX Setup502",
+      "panel_test_target": "xiao_s3_panel_test",
+      "panel_hardware_test_passed": false
+    },
+    {
+      "id": "esp32-dev",
+      "target": "esp32",
+      "status": "compile-scaffold",
+      "display_driver": "GxEPD2",
+      "radio": "external SPI or serial companion",
+      "panel_and_pins_required": true
+    },
+    {
+      "id": "esp32s3-dev",
+      "target": "esp32s3",
+      "status": "compile-scaffold",
+      "display_driver": "GxEPD2",
+      "radio": "external SPI or serial companion",
+      "panel_and_pins_required": true
+    },
+    {
+      "id": "waveshare-esp32",
+      "status": "planned-profile",
+      "display_driver": "GxEPD2_WS_ESP32_Driver example",
+      "panel_and_pins_required": true
+    },
+    {
+      "id": "raspberry-pi-linux",
+      "status": "reference-verifier",
+      "display_driver": "Waveshare e-Paper Python or image renderer",
+      "radio": "USB serial companion preferred",
+      "panel_and_pins_required": true
+    },
+    {
+      "id": "trmnl-800x480",
+      "status": "needs-existing-firmware-integration",
+      "panel_and_pins_required": true
+    }
+  ],
+  "transports": {
+    "wifi": "adapter pending",
+    "meshtastic": "adapter pending",
+    "meshcore": "adapter pending"
+  },
+  "reference_profile": "seeed-xiao-s3-wio-b2b-epaper-v2"
+}
