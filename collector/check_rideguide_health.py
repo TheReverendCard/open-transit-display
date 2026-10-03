@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 """Validate a Ride Guide realtime collector run.
 
-Reads one or more collector .jsonl/.jsonl.gz files and checks that the
-Whangārei realtime workaround is producing plausibly live data.
+Reads collector .jsonl/.jsonl.gz files and checks that the Whangārei realtime
+workaround is reachable and, during expected CityLink service hours, is
+producing useful live trip data.
 
 Exit status:
   0 = healthy (warnings are allowed)
   1 = unhealthy
-
-The thresholds are intentionally conservative so a quiet service period does
-not create false failures.
 """
 
 from __future__ import annotations
@@ -20,18 +18,34 @@ import json
 import os
 import sys
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, time, timezone
 from pathlib import Path
 from typing import Any, Iterable
+from zoneinfo import ZoneInfo
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Validate Ride Guide realtime collector output.")
     parser.add_argument("--input", required=True, help="Collector file or directory")
-    parser.add_argument("--min-vehicles", type=int, default=1)
-    parser.add_argument("--min-trip-updates", type=int, default=1)
-    parser.add_argument("--min-routes", type=int, default=5)
+    parser.add_argument("--timezone", default="Pacific/Auckland")
     parser.add_argument("--max-feed-age-seconds", type=int, default=300)
+
+    # During expected service, these are hard health requirements.
+    parser.add_argument("--min-trip-updates", type=int, default=1)
+    parser.add_argument("--min-routes", type=int, default=1)
+
+    # These are informational thresholds only.
+    parser.add_argument("--warn-min-vehicles", type=int, default=1)
+    parser.add_argument("--warn-min-routes", type=int, default=5)
+
+    # Current CityLink operating envelope, deliberately padded around the
+    # first/last scheduled trips. Sunday currently has no regular service.
+    parser.add_argument("--weekday-start", default="05:45")
+    parser.add_argument("--weekday-end", default="19:15")
+    parser.add_argument("--saturday-start", default="06:40")
+    parser.add_argument("--saturday-end", default="17:30")
+    parser.add_argument("--sunday-service", action="store_true")
+
     parser.add_argument("--summary-json", default="data/run/health_summary.json")
     return parser.parse_args()
 
@@ -64,6 +78,27 @@ def parse_iso8601(value: str | None) -> float | None:
         return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
     except (TypeError, ValueError):
         return None
+
+
+def parse_hhmm(value: str) -> time:
+    try:
+        hour_text, minute_text = value.split(":", 1)
+        return time(hour=int(hour_text), minute=int(minute_text))
+    except (ValueError, TypeError) as exc:
+        raise ValueError(f"invalid HH:MM value: {value!r}") from exc
+
+
+def service_expected(local_dt: datetime, args: argparse.Namespace) -> bool:
+    weekday = local_dt.weekday()  # Monday = 0, Sunday = 6
+    local_t = local_dt.time().replace(second=0, microsecond=0)
+
+    if weekday <= 4:
+        return parse_hhmm(args.weekday_start) <= local_t <= parse_hhmm(args.weekday_end)
+
+    if weekday == 5:
+        return parse_hhmm(args.saturday_start) <= local_t <= parse_hhmm(args.saturday_end)
+
+    return bool(args.sunday_service)
 
 
 def main() -> int:
@@ -122,9 +157,14 @@ def main() -> int:
                     received_ts if newest_received_timestamp is None else max(newest_received_timestamp, received_ts)
                 )
 
-    now = datetime.now(timezone.utc).timestamp()
-    source_age = None if newest_source_timestamp is None else max(0.0, now - newest_source_timestamp)
-    received_age = None if newest_received_timestamp is None else max(0.0, now - newest_received_timestamp)
+    now_utc = datetime.now(timezone.utc)
+    now_ts = now_utc.timestamp()
+    source_age = None if newest_source_timestamp is None else max(0.0, now_ts - newest_source_timestamp)
+    received_age = None if newest_received_timestamp is None else max(0.0, now_ts - newest_received_timestamp)
+
+    reference_ts = newest_received_timestamp if newest_received_timestamp is not None else now_ts
+    local_dt = datetime.fromtimestamp(reference_ts, ZoneInfo(args.timezone))
+    expected_service = service_expected(local_dt, args)
 
     failures: list[str] = []
     warnings: list[str] = []
@@ -133,12 +173,10 @@ def main() -> int:
     trip_update_rows = counts["trip_update"]
     empty_rows = counts["empty_feed"]
 
-    if vehicle_rows < args.min_vehicles:
-        failures.append(f"vehicle rows {vehicle_rows} < required {args.min_vehicles}")
-    if trip_update_rows < args.min_trip_updates:
-        failures.append(f"trip update rows {trip_update_rows} < required {args.min_trip_updates}")
-    if len(routes) < args.min_routes:
-        failures.append(f"distinct routes {len(routes)} < required {args.min_routes}")
+    # Connectivity/freshness checks always apply, including outside service.
+    if total_rows == 0:
+        failures.append("collector file contained no decoded rows")
+
     if source_age is None:
         failures.append("no usable feed/vehicle/trip timestamp found")
     elif source_age > args.max_feed_age_seconds:
@@ -147,9 +185,31 @@ def main() -> int:
         )
 
     if received_age is None:
-        warnings.append("no usable received_at timestamp found")
+        failures.append("no usable received_at timestamp found")
     elif received_age > args.max_feed_age_seconds:
-        warnings.append(f"newest received_at timestamp is {received_age:.0f}s old")
+        failures.append(
+            f"newest received_at timestamp is {received_age:.0f}s old, limit is {args.max_feed_age_seconds}s"
+        )
+
+    # Live-data checks only apply when regular service should actually be running.
+    if expected_service:
+        if trip_update_rows < args.min_trip_updates:
+            failures.append(f"trip update rows {trip_update_rows} < required {args.min_trip_updates}")
+        if len(routes) < args.min_routes:
+            failures.append(f"distinct routes {len(routes)} < required {args.min_routes}")
+
+        if vehicle_rows < args.warn_min_vehicles:
+            warnings.append(
+                f"vehicle rows {vehicle_rows} < preferred {args.warn_min_vehicles}"
+            )
+        if len(routes) < args.warn_min_routes:
+            warnings.append(
+                f"distinct routes {len(routes)} < preferred {args.warn_min_routes}"
+            )
+    else:
+        warnings.append(
+            "outside expected regular CityLink service hours; active vehicle/trip counts are informational only"
+        )
 
     if empty_rows:
         empty_ratio = empty_rows / total_rows if total_rows else 0.0
@@ -160,6 +220,8 @@ def main() -> int:
 
     summary = {
         "healthy": not failures,
+        "service_expected": expected_service,
+        "check_local_time": local_dt.isoformat(timespec="seconds"),
         "files_checked": len(files),
         "total_rows": total_rows,
         "vehicle_rows": vehicle_rows,
@@ -172,10 +234,14 @@ def main() -> int:
         "newest_source_age_seconds": None if source_age is None else round(source_age, 1),
         "newest_received_age_seconds": None if received_age is None else round(received_age, 1),
         "thresholds": {
-            "min_vehicles": args.min_vehicles,
-            "min_trip_updates": args.min_trip_updates,
-            "min_routes": args.min_routes,
+            "min_trip_updates_during_service": args.min_trip_updates,
+            "min_routes_during_service": args.min_routes,
+            "warn_min_vehicles": args.warn_min_vehicles,
+            "warn_min_routes": args.warn_min_routes,
             "max_feed_age_seconds": args.max_feed_age_seconds,
+            "weekday_service_window": f"{args.weekday_start}-{args.weekday_end}",
+            "saturday_service_window": f"{args.saturday_start}-{args.saturday_end}",
+            "sunday_service": args.sunday_service,
         },
         "warnings": warnings,
         "failures": failures,
@@ -194,6 +260,8 @@ def main() -> int:
         with open(github_summary, "a", encoding="utf-8") as handle:
             handle.write("## Whangārei realtime feed health\n\n")
             handle.write(f"**Status:** {status}\n\n")
+            handle.write(f"- Check time: {local_dt.isoformat(timespec='minutes')}\n")
+            handle.write(f"- Regular service expected: {'yes' if expected_service else 'no'}\n")
             handle.write(
                 f"- Vehicle rows: {vehicle_rows}\n"
                 f"- Trip updates: {trip_update_rows}\n"
