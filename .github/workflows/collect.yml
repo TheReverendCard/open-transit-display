@@ -42,10 +42,16 @@ jobs:
         run: >-
           python collector/check_rideguide_health.py
           --input data/run
-          --min-vehicles 1
+          --timezone Pacific/Auckland
           --min-trip-updates 1
-          --min-routes 5
+          --min-routes 1
+          --warn-min-vehicles 1
+          --warn-min-routes 5
           --max-feed-age-seconds 300
+          --weekday-start 05:45
+          --weekday-end 19:15
+          --saturday-start 06:40
+          --saturday-end 17:30
           --summary-json data/run/health_summary.json
 
       - name: Upload collected observations
