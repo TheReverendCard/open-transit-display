@@ -1,6 +1,6 @@
 {
   "provider": "metlink",
-  "fetched_at": "2026-10-04T17:47:04.233525+00:00",
+  "fetched_at": "2026-10-05T21:18:00.089667+00:00",
   "sha256": "3fd7c1de9d457880933859ae57cb4685a55a834ba7205ce431216abb6c75edda",
   "bytes": 19475191,
   "tables": {
@@ -16,15 +16,11 @@
   "attribution": "Greater Wellington Regional Council / Metlink",
   "service_windows": {
     "timezone": "Pacific/Auckland",
-    "covered_from": 1791111600,
-    "covered_until": 1791975600,
+    "covered_from": 1791198000,
+    "covered_until": 1792062000,
     "lead_seconds": 900,
     "late_grace_seconds": 1800,
     "intervals": [
-      [
-        1791024300,
-        1791115260
-      ],
       [
         1791126900,
         1791202440
@@ -56,6 +52,10 @@
       [
         1791904500,
         1791980040
+      ],
+      [
+        1791990900,
+        1792066440
       ]
     ]
   },
