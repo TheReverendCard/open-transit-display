@@ -2,11 +2,17 @@
 """Validate a Ride Guide realtime collector run.
 
 Reads collector .jsonl/.jsonl.gz files and checks that the Whangārei realtime
-workaround is reachable and, during expected CityLink service hours, is
-producing useful live trip data.
+workaround is reachable and producing plausibly live data.
+
+Health states:
+  healthy   = feed is fresh and expected realtime streams are present
+  degraded  = feed is fresh and useful live data exists, but one stream is
+              temporarily missing (for example TripUpdates)
+  unhealthy = feed is stale/unreachable, or no useful live data is present
+              during expected service
 
 Exit status:
-  0 = healthy (warnings are allowed)
+  0 = healthy or degraded
   1 = unhealthy
 """
 
@@ -30,11 +36,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timezone", default="Pacific/Auckland")
     parser.add_argument("--max-feed-age-seconds", type=int, default=300)
 
-    # During expected service, these are hard health requirements.
+    # These are the thresholds for a fully healthy in-service feed. Falling
+    # below them can be degraded rather than failed if another fresh realtime
+    # stream is still clearly working.
     parser.add_argument("--min-trip-updates", type=int, default=1)
     parser.add_argument("--min-routes", type=int, default=1)
 
-    # These are informational thresholds only.
+    # Informational thresholds only.
     parser.add_argument("--warn-min-vehicles", type=int, default=1)
     parser.add_argument("--warn-min-routes", type=int, default=5)
 
@@ -168,6 +176,7 @@ def main() -> int:
 
     failures: list[str] = []
     warnings: list[str] = []
+    degraded_reasons: list[str] = []
 
     vehicle_rows = counts["vehicle"]
     trip_update_rows = counts["trip_update"]
@@ -191,17 +200,28 @@ def main() -> int:
             f"newest received_at timestamp is {received_age:.0f}s old, limit is {args.max_feed_age_seconds}s"
         )
 
-    # Live-data checks only apply when regular service should actually be running.
-    if expected_service:
-        if trip_update_rows < args.min_trip_updates:
-            failures.append(f"trip update rows {trip_update_rows} < required {args.min_trip_updates}")
-        if len(routes) < args.min_routes:
-            failures.append(f"distinct routes {len(routes)} < required {args.min_routes}")
+    has_vehicle_stream = vehicle_rows >= args.warn_min_vehicles and len(routes) >= args.min_routes
+    has_prediction_stream = trip_update_rows >= args.min_trip_updates and len(routes) >= args.min_routes
 
-        if vehicle_rows < args.warn_min_vehicles:
-            warnings.append(
-                f"vehicle rows {vehicle_rows} < preferred {args.warn_min_vehicles}"
+    if expected_service:
+        # A complete absence of useful in-service activity is a real failure.
+        if not has_vehicle_stream and not has_prediction_stream:
+            failures.append(
+                "no useful active vehicle or trip-update stream detected during expected service"
             )
+        else:
+            # A single missing stream is degraded, not an outage. The device can
+            # continue using the remaining stream plus its normal fallbacks.
+            if not has_vehicle_stream:
+                degraded_reasons.append(
+                    f"vehicle stream below expected level ({vehicle_rows} vehicle rows)"
+                )
+            if not has_prediction_stream:
+                degraded_reasons.append(
+                    f"TripUpdates temporarily unavailable ({trip_update_rows} rows); "
+                    "live ETA should fall back to cached/estimated/scheduled data"
+                )
+
         if len(routes) < args.warn_min_routes:
             warnings.append(
                 f"distinct routes {len(routes)} < preferred {args.warn_min_routes}"
@@ -218,8 +238,16 @@ def main() -> int:
         else:
             warnings.append(f"{empty_rows} empty_feed rows observed")
 
+    if failures:
+        health_status = "unhealthy"
+    elif degraded_reasons:
+        health_status = "degraded"
+    else:
+        health_status = "healthy"
+
     summary = {
-        "healthy": not failures,
+        "healthy": health_status != "unhealthy",
+        "status": health_status,
         "service_expected": expected_service,
         "check_local_time": local_dt.isoformat(timespec="seconds"),
         "files_checked": len(files),
@@ -231,11 +259,13 @@ def main() -> int:
         "distinct_routes": len(routes),
         "distinct_vehicle_ids": len(vehicles),
         "distinct_trip_ids": len(trips),
+        "vehicle_stream_present": has_vehicle_stream,
+        "prediction_stream_present": has_prediction_stream,
         "newest_source_age_seconds": None if source_age is None else round(source_age, 1),
         "newest_received_age_seconds": None if received_age is None else round(received_age, 1),
         "thresholds": {
-            "min_trip_updates_during_service": args.min_trip_updates,
-            "min_routes_during_service": args.min_routes,
+            "min_trip_updates_for_full_health": args.min_trip_updates,
+            "min_routes_for_useful_stream": args.min_routes,
             "warn_min_vehicles": args.warn_min_vehicles,
             "warn_min_routes": args.warn_min_routes,
             "max_feed_age_seconds": args.max_feed_age_seconds,
@@ -243,6 +273,7 @@ def main() -> int:
             "saturday_service_window": f"{args.saturday_start}-{args.saturday_end}",
             "sunday_service": args.sunday_service,
         },
+        "degraded_reasons": degraded_reasons,
         "warnings": warnings,
         "failures": failures,
     }
@@ -251,15 +282,19 @@ def main() -> int:
     summary_path.parent.mkdir(parents=True, exist_ok=True)
     summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
 
-    status = "PASS" if not failures else "FAIL"
-    print(f"HEALTH {status}")
+    label = {
+        "healthy": "PASS",
+        "degraded": "DEGRADED",
+        "unhealthy": "FAIL",
+    }[health_status]
+    print(f"HEALTH {label}")
     print(json.dumps(summary, indent=2))
 
     github_summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if github_summary:
         with open(github_summary, "a", encoding="utf-8") as handle:
             handle.write("## Whangārei realtime feed health\n\n")
-            handle.write(f"**Status:** {status}\n\n")
+            handle.write(f"**Status:** {health_status.upper()}\n\n")
             handle.write(f"- Check time: {local_dt.isoformat(timespec='minutes')}\n")
             handle.write(f"- Regular service expected: {'yes' if expected_service else 'no'}\n")
             handle.write(
@@ -272,6 +307,8 @@ def main() -> int:
             )
             if source_age is not None:
                 handle.write(f"- Newest source timestamp age: {source_age:.0f} s\n")
+            for reason in degraded_reasons:
+                handle.write(f"- Degraded: {reason}\n")
             for warning in warnings:
                 handle.write(f"- Warning: {warning}\n")
             for failure in failures:
@@ -281,6 +318,9 @@ def main() -> int:
         for failure in failures:
             print(f"HEALTH FAIL: {failure}", file=sys.stderr)
         return 1
+
+    for reason in degraded_reasons:
+        print(f"HEALTH DEGRADED: {reason}")
 
     for warning in warnings:
         print(f"HEALTH WARNING: {warning}")
