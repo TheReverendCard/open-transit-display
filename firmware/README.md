@@ -9,7 +9,7 @@ See the [responsibility assignment and handoff contract](../docs/site-fonts-and-
 - **Website/layout conversation** owns source font assets, licensing/provenance documentation, automated font conversion and the reusable GitHub Actions font-generation step.
 - **Hardware-testing conversation** (Museum-stop display and LoRa testing) owns consuming the generated fonts in Seeed_GFX, compiling ready-to-flash firmware, and validating the display on hardware.
 - The hardware-testing conversation continues Museum-stop rendering, structured LoRa arrivals, regional refresh, daytime/nighttime clock behaviour and timetable-aware sleep/wake.
-- Font conversion is still pending with the website/layout conversation. Neither conversation should refer conversion back to the other.
+- Font conversion and its reusable GitHub Actions job are delivered and tested: [font package and integration guide](fonts/README.md), [successful build](https://github.com/TheReverendCard/open-transit-display/actions/runs/38363649629). The hardware conversation now integrates the generated package into its next firmware version and validates physical rendering. Neither conversation should hand the conversion task back.
 
 ## Non-negotiable fallback behaviour
 
