@@ -1,0 +1,724 @@
+{
+  "schema_version": "1.1",
+  "name": "Open Transit Display default",
+  "fonts": {
+    "family": "TransitSans",
+    "regular": "/display-sans-regular.otf",
+    "bold": "/display-sans-bold.otf",
+    "source_family": "Nimbus Sans",
+    "source": "https://github.com/ArtifexSoftware/urw-base35-fonts",
+    "license_notice": "/font-license.txt",
+    "assets": [
+      {
+        "style": "Regular",
+        "web_weight": 400,
+        "path": "/display-sans-regular.otf",
+        "sha256": "7c25be4d78155523080ab85b10277150657ff7dabbcad7037bdd536c9b6d0d08"
+      },
+      {
+        "style": "Bold",
+        "web_weight": 900,
+        "path": "/display-sans-bold.otf",
+        "sha256": "7f33328e6b4d4cd21b45fa625791928c9407dc702db6780e56b09ca9a3ecaa67"
+      }
+    ]
+  },
+  "screen": {
+    "width": 800,
+    "height": 480,
+    "color_mode": "1bit",
+    "safe_margin": 6
+  },
+  "behavior": {
+    "live_horizon_minutes": 15,
+    "absolute_horizon_minutes": 20,
+    "arrival_grace_minutes": 2,
+    "multi_rows": 4
+  },
+  "refresh_policy": {
+    "full_refresh": {
+      "enabled": true,
+      "partial_refresh_count": 30,
+      "max_minutes": 45,
+      "on_major_layout_change": true,
+      "panel_override_required": true
+    },
+    "partial_refresh": "only_when_officially_supported",
+    "batch_changed_rectangles": true,
+    "retain_previous_frame": true,
+    "clock_never_forces_wake": true,
+    "temperature_aware": true
+  },
+  "single": {
+    "route": {
+      "rect": [
+        6,
+        6,
+        229,
+        214
+      ],
+      "preferred": 108,
+      "minimum": 54,
+      "refresh": "static",
+      "align": "center",
+      "wrap": false,
+      "weight": 900
+    },
+    "direction": {
+      "rect": [
+        255,
+        20,
+        355,
+        88
+      ],
+      "preferred": 68,
+      "minimum": 30,
+      "refresh": "static",
+      "align": "left",
+      "wrap": true,
+      "weight": 900
+    },
+    "clock": {
+      "rect": [
+        620,
+        18,
+        150,
+        48
+      ],
+      "preferred": 42,
+      "minimum": 28,
+      "refresh": "dynamic_high",
+      "align": "right",
+      "wrap": false,
+      "weight": 900
+    },
+    "status": {
+      "rect": [
+        620,
+        66,
+        150,
+        42
+      ],
+      "preferred": 18,
+      "minimum": 11,
+      "refresh": "dynamic_high",
+      "align": "right",
+      "wrap": false,
+      "weight": 900
+    },
+    "stop": {
+      "rect": [
+        255,
+        128,
+        520,
+        42
+      ],
+      "preferred": 28,
+      "minimum": 18,
+      "refresh": "static",
+      "align": "left",
+      "wrap": true,
+      "weight": 900
+    },
+    "journey": {
+      "rect": [
+        255,
+        174,
+        520,
+        40
+      ],
+      "preferred": 22,
+      "minimum": 15,
+      "refresh": "static",
+      "align": "left",
+      "wrap": true,
+      "weight": 900
+    },
+    "scheduled": {
+      "rect": [
+        6,
+        262,
+        229,
+        110
+      ],
+      "preferred": 46,
+      "minimum": 32,
+      "refresh": "dynamic_low",
+      "align": "center",
+      "wrap": false,
+      "weight": 900
+    },
+    "eta": {
+      "rect": [
+        250,
+        226,
+        525,
+        106
+      ],
+      "preferred": 104,
+      "minimum": 58,
+      "refresh": "dynamic_high",
+      "align": "center",
+      "wrap": false,
+      "weight": 900
+    },
+    "predicted": {
+      "rect": [
+        330,
+        333,
+        175,
+        64
+      ],
+      "preferred": 55,
+      "minimum": 34,
+      "refresh": "dynamic_high",
+      "align": "center",
+      "wrap": false,
+      "weight": 900
+    },
+    "age": {
+      "rect": [
+        525,
+        333,
+        240,
+        64
+      ],
+      "preferred": 17,
+      "minimum": 11,
+      "refresh": "dynamic_high",
+      "align": "left",
+      "wrap": false,
+      "weight": 900
+    },
+    "previous": {
+      "rect": [
+        6,
+        420,
+        229,
+        48
+      ],
+      "preferred": 30,
+      "minimum": 20,
+      "refresh": "dynamic_low",
+      "align": "center",
+      "wrap": false,
+      "weight": 900
+    },
+    "next": {
+      "rect": [
+        450,
+        420,
+        326,
+        48
+      ],
+      "preferred": 30,
+      "minimum": 20,
+      "refresh": "dynamic_low",
+      "align": "right",
+      "wrap": false,
+      "weight": 900
+    }
+  },
+  "multi": {
+    "header": {
+      "rect": [
+        20,
+        6,
+        615,
+        66
+      ],
+      "preferred": 31,
+      "minimum": 20,
+      "refresh": "static",
+      "align": "left",
+      "wrap": false,
+      "weight": 900
+    },
+    "clock": {
+      "rect": [
+        650,
+        12,
+        124,
+        48
+      ],
+      "preferred": 30,
+      "minimum": 20,
+      "refresh": "dynamic_high",
+      "align": "right",
+      "wrap": false,
+      "weight": 900
+    },
+    "rows": {
+      "area": [
+        6,
+        72,
+        788,
+        402
+      ],
+      "count": 4,
+      "route": {
+        "rect": [
+          31,
+          13,
+          102,
+          74
+        ],
+        "preferred": 40,
+        "minimum": 26,
+        "refresh": "static",
+        "align": "center",
+        "wrap": false,
+        "weight": 900
+      },
+      "direction": {
+        "rect": [
+          164,
+          5,
+          404,
+          36
+        ],
+        "preferred": 31,
+        "minimum": 20,
+        "refresh": "static",
+        "align": "left",
+        "wrap": false,
+        "weight": 900
+      },
+      "journey": {
+        "rect": [
+          164,
+          42,
+          404,
+          24
+        ],
+        "preferred": 15,
+        "minimum": 11,
+        "refresh": "static",
+        "align": "left",
+        "wrap": true,
+        "weight": 900
+      },
+      "scheduled": {
+        "rect": [
+          164,
+          72,
+          404,
+          20
+        ],
+        "preferred": 14,
+        "minimum": 11,
+        "refresh": "dynamic_low",
+        "align": "left",
+        "wrap": false,
+        "weight": 900
+      },
+      "eta": {
+        "rect": [
+          578,
+          18,
+          202,
+          54
+        ],
+        "preferred": 48,
+        "minimum": 30,
+        "refresh": "dynamic_high",
+        "align": "center",
+        "wrap": false,
+        "weight": 900
+      },
+      "prediction": {
+        "rect": [
+          578,
+          74,
+          202,
+          18
+        ],
+        "preferred": 11,
+        "minimum": 9,
+        "refresh": "dynamic_high",
+        "align": "center",
+        "wrap": false,
+        "weight": 900
+      }
+    }
+  },
+  "rendering": {
+    "version": 1,
+    "background": "#ffffff",
+    "foreground": "#111111",
+    "frame": {
+      "rect": [
+        1.5,
+        1.5,
+        797,
+        477
+      ],
+      "stroke_width": 3
+    },
+    "text": {
+      "baseline": "middle",
+      "line_height": 1,
+      "max_lines": 2,
+      "clip_to_region": true,
+      "shrink_step_px": 1
+    },
+    "single": {
+      "route_badge": {
+        "rect": [
+          10,
+          10,
+          221,
+          206
+        ],
+        "corner_radius": 28,
+        "stroke_width": 8
+      },
+      "separators": [
+        {
+          "line": [
+            235,
+            6,
+            235,
+            414
+          ],
+          "stroke_width": 1
+        },
+        {
+          "line": [
+            235,
+            120,
+            794,
+            120
+          ],
+          "stroke_width": 2
+        },
+        {
+          "line": [
+            235,
+            220,
+            794,
+            220
+          ],
+          "stroke_width": 1
+        },
+        {
+          "line": [
+            6,
+            414,
+            794,
+            414
+          ],
+          "stroke_width": 2
+        },
+        {
+          "line": [
+            241,
+            414,
+            241,
+            474
+          ],
+          "stroke_width": 1
+        }
+      ],
+      "regions": {
+        "route": {
+          "rect": [
+            24,
+            14,
+            193,
+            198
+          ],
+          "preferred": 108,
+          "minimum": 54,
+          "refresh": "static",
+          "align": "center",
+          "wrap": false,
+          "weight": 900
+        },
+        "direction": {
+          "rect": [
+            255,
+            20,
+            355,
+            88
+          ],
+          "preferred": 68,
+          "minimum": 30,
+          "refresh": "static",
+          "align": "left",
+          "wrap": true,
+          "weight": 900
+        },
+        "clock": {
+          "rect": [
+            620,
+            18,
+            150,
+            48
+          ],
+          "preferred": 42,
+          "minimum": 28,
+          "refresh": "dynamic_high",
+          "align": "right",
+          "wrap": false,
+          "weight": 900
+        },
+        "status": {
+          "rect": [
+            620,
+            66,
+            150,
+            24
+          ],
+          "preferred": 18,
+          "minimum": 11,
+          "refresh": "dynamic_high",
+          "align": "right",
+          "wrap": false,
+          "weight": 900
+        },
+        "update": {
+          "rect": [
+            620,
+            92,
+            150,
+            16
+          ],
+          "preferred": 12,
+          "minimum": 11,
+          "refresh": "dynamic_high",
+          "align": "right",
+          "wrap": false,
+          "weight": 500
+        },
+        "stop": {
+          "rect": [
+            255,
+            128,
+            520,
+            42
+          ],
+          "preferred": 28,
+          "minimum": 18,
+          "refresh": "static",
+          "align": "left",
+          "wrap": true,
+          "weight": 900
+        },
+        "journey": {
+          "rect": [
+            255,
+            174,
+            520,
+            40
+          ],
+          "preferred": 22,
+          "minimum": 15,
+          "refresh": "static",
+          "align": "left",
+          "wrap": true,
+          "weight": 600
+        },
+        "scheduled_label": {
+          "rect": [
+            6,
+            274,
+            229,
+            22
+          ],
+          "preferred": 13,
+          "minimum": 12,
+          "refresh": "dynamic_low",
+          "align": "center",
+          "wrap": false,
+          "weight": 900
+        },
+        "scheduled_time": {
+          "rect": [
+            6,
+            304,
+            229,
+            62
+          ],
+          "preferred": 46,
+          "minimum": 32,
+          "refresh": "dynamic_low",
+          "align": "center",
+          "wrap": false,
+          "weight": 900
+        },
+        "eta": {
+          "rect": [
+            250,
+            226,
+            525,
+            106
+          ],
+          "preferred": 104,
+          "minimum": 58,
+          "refresh": "dynamic_high",
+          "align": "center",
+          "wrap": false,
+          "weight": 900
+        },
+        "predicted": {
+          "rect": [
+            330,
+            333,
+            175,
+            64
+          ],
+          "preferred": 55,
+          "minimum": 34,
+          "refresh": "dynamic_high",
+          "align": "center",
+          "wrap": false,
+          "weight": 900
+        },
+        "age": {
+          "rect": [
+            525,
+            333,
+            240,
+            64
+          ],
+          "preferred": 17,
+          "minimum": 11,
+          "refresh": "dynamic_high",
+          "align": "left",
+          "wrap": false,
+          "weight": 700
+        },
+        "schedule_status": {
+          "rect": [
+            255,
+            333,
+            520,
+            64
+          ],
+          "preferred": 17,
+          "minimum": 11,
+          "refresh": "dynamic_high",
+          "align": "center",
+          "wrap": false,
+          "weight": 900
+        },
+        "previous_label": {
+          "rect": [
+            6,
+            420,
+            229,
+            16
+          ],
+          "preferred": 12,
+          "minimum": 11,
+          "refresh": "dynamic_low",
+          "align": "center",
+          "wrap": false,
+          "weight": 900
+        },
+        "previous_time": {
+          "rect": [
+            6,
+            439,
+            229,
+            32
+          ],
+          "preferred": 30,
+          "minimum": 20,
+          "refresh": "dynamic_low",
+          "align": "center",
+          "wrap": false,
+          "weight": 900
+        },
+        "next_label": {
+          "rect": [
+            450,
+            420,
+            326,
+            16
+          ],
+          "preferred": 12,
+          "minimum": 11,
+          "refresh": "dynamic_low",
+          "align": "right",
+          "wrap": false,
+          "weight": 900
+        },
+        "next_time": {
+          "rect": [
+            450,
+            439,
+            326,
+            32
+          ],
+          "preferred": 30,
+          "minimum": 20,
+          "refresh": "dynamic_low",
+          "align": "right",
+          "wrap": false,
+          "weight": 900
+        }
+      },
+      "conditions": {
+        "status": "hide when SCHED",
+        "update": "show when prediction age is available",
+        "predicted_and_age": "hide when SCHED",
+        "schedule_status": "show when SCHED",
+        "clock_status": "never label the current clock as scheduled"
+      }
+    },
+    "multi": {
+      "row_origin_y": 72,
+      "row_height": 100.5,
+      "count": 4,
+      "header_separator": {
+        "line": [
+          6,
+          72,
+          794,
+          72
+        ],
+        "stroke_width": 2
+      },
+      "row_separator": {
+        "line_relative": [
+          6,
+          100.5,
+          794,
+          100.5
+        ],
+        "stroke_width": 1
+      },
+      "row_divider": {
+        "line_relative": [
+          156,
+          0,
+          156,
+          100.5
+        ],
+        "stroke_width": 1
+      },
+      "route_badge": {
+        "rect_relative": [
+          27,
+          13,
+          110,
+          74
+        ],
+        "corner_radius": 13,
+        "stroke_width": 4
+      },
+      "region_coordinates": "row regions are relative to row_origin_y + index * row_height",
+      "text_weights": {
+        "route": 900,
+        "direction": 900,
+        "journey": 500,
+        "scheduled": 500,
+        "eta": 900,
+        "prediction": 900
+      }
+    },
+    "preview_overlay_excluded": true
+  }
+}
