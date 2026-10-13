@@ -2,6 +2,15 @@
 
 The first firmware target will be a Wi-Fi shop-window display. Hardware selection is not final yet, so this directory currently defines required behaviour rather than tying the project to one board.
 
+## Current font and firmware responsibilities
+
+See the [responsibility assignment and handoff contract](../docs/site-fonts-and-layout.md#responsibility-assignment-13-october-2026).
+
+- **Website/layout conversation** owns source font assets, licensing/provenance documentation, automated font conversion and the reusable GitHub Actions font-generation step.
+- **Hardware-testing conversation** (Museum-stop display and LoRa testing) owns consuming the generated fonts in Seeed_GFX, compiling ready-to-flash firmware, and validating the display on hardware.
+- The hardware-testing conversation continues Museum-stop rendering, structured LoRa arrivals, regional refresh, daytime/nighttime clock behaviour and timetable-aware sleep/wake.
+- Font conversion is still pending with the website/layout conversation. Neither conversation should refer conversion back to the other.
+
 ## Non-negotiable fallback behaviour
 
 Even the simplest Wi-Fi-only unit must retain locally stored data so loss of Wi-Fi, the backend, GitHub-hosted assets, DNS, or the upstream realtime feed does not blank the sign.
