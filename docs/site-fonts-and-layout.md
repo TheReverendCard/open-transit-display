@@ -1,6 +1,33 @@
 # Site layout and font handoff
 
-The Site's original single-service and four-row layout is now available in [site-default.json](../firmware/layouts/site-default.json). This is a layout specification, not completed firmware. Font conversion and firmware builds are being implemented separately.
+The Site's original single-service and four-row layout is now available in [site-default.json](../firmware/layouts/site-default.json). This is a layout specification, not completed firmware. Font conversion and firmware integration have explicit owners below.
+
+## Responsibility assignment (13 October 2026)
+
+This assignment resolves the circular handoff between the two ChatGPT conversations.
+
+| Work | Owner | Required result |
+| --- | --- | --- |
+| Original font assets, provenance, copyright and licence notices | **Website/layout conversation**: the conversation that created this handoff document and the Site layout export | Verified source assets and documented licence requirements |
+| Font conversion and its GitHub Actions automation | **Website/layout conversation** | Reproducible conversion driven by the layout; embedded font arrays, Unicode lookup/metrics, and a manifest of generated sizes and glyphs |
+| Font usage/integration in Seeed_GFX device firmware | **Hardware-testing conversation**: the conversation developing the Museum-stop display and working LoRa connection | Device renderer uses the generated fonts and preserves layout text-fitting behaviour |
+| Firmware compilation and ready-to-flash hardware builds | **Hardware-testing conversation**, consuming the font-generation step maintained by the website/layout conversation | Firmware builds include the generated fonts automatically |
+| Museum-stop rendering, structured LoRa arrivals, regional refresh, clock behaviour and timetable-aware sleep/wake | **Hardware-testing conversation** | Tested device behaviour on the actual display |
+
+**The website/layout conversation owns font conversion. It must not hand conversion back to the hardware-testing conversation. The hardware-testing conversation owns integrating the conversion output, not writing a second converter.**
+
+### Handoff contract
+
+The website/layout conversation will provide:
+- the font sources and applicable notices;
+- a converter and GitHub Actions entry point that the firmware build can invoke;
+- compiled-in font data, glyph lookup and metrics suitable for the device renderer, covering required layout sizes and Māori characters;
+- a manifest identifying source hashes, glyph coverage, generated sizes and output format;
+- an integration example describing how the hardware renderer loads and draws those fonts.
+
+The hardware-testing conversation will integrate that output into its renderer and build workflow, then validate it on the device. It can continue its existing hardware milestones while conversion is pending.
+
+**Current status:** font identity, hashes and layout geometry are documented. Automated font conversion has not yet been delivered by the website/layout conversation. The assignment above is a work commitment, not a claim that the conversion pipeline or faithful typography is already complete.
 
 ## Exact typography
 
