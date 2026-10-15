@@ -37,6 +37,7 @@ SUBSCRIBE = {"organisationId": 104, "feedTypes":
              ["VEHICLE_POSITIONS", "TRIP_UPDATES", "SERVICE_ALERTS"]}
 KINDS = ("tripupdates", "vehiclepositions", "alerts")
 STALE_SECONDS = 90
+ALERT_STALE_SECONDS = 600
 LOG = logging.getLogger("citylink_gtfsrt")
 
 
@@ -247,19 +248,27 @@ class Bridge:
         feed = pb.FeedMessage()
         feed.ParseFromString(blob)
         source_time = int(feed.header.timestamp or received_at)
-        if source_time > received_at + 60 or received_at - source_time > STALE_SECONDS:
+        if source_time > received_at + 60 or received_at - source_time > ALERT_STALE_SECONDS:
             return False
         batches = {kind: {} for kind in KINDS}
         for entity in feed.entity:
             kind = kind_of(entity)
             if kind is None:
                 continue
+            # A fresh envelope may contain an old vehicle position or old
+            # trip prediction. Never extend an entity's life using the envelope.
+            entity_time = int(entity.trip_update.timestamp or source_time) if kind == "tripupdates" else (
+                int(entity.vehicle.timestamp or source_time) if kind == "vehiclepositions"
+                else source_time)
+            ttl = ALERT_STALE_SECONDS if kind == "alerts" else STALE_SECONDS
+            if entity_time > received_at + 60 or received_at - entity_time > ttl:
+                continue
             out = remap_entity(entity, self.index)
             if out is None:
                 self.unmatched += 1
                 continue
             ident = out.id or (kind + ":" + str(len(batches[kind])))
-            batches[kind][ident] = (out, source_time)
+            batches[kind][ident] = (out, entity_time)
             self.accepted += 1
         with self.lock:
             if not feed.entity:
@@ -285,10 +294,11 @@ class Bridge:
         now = int(now or clock.time())
         with self.lock:
             freshness = self.last_packet[kind]
-            if not freshness or now - self.last_source_time[kind] > STALE_SECONDS:
+            ttl = ALERT_STALE_SECONDS if kind == "alerts" else STALE_SECONDS
+            if not freshness or now - self.last_source_time[kind] > ttl:
                 return None
             return [obj for obj, ts in self.cache[kind].values()
-                    if now - ts <= STALE_SECONDS]
+                    if now - ts <= ttl]
 
     def protobuf(self, kind, now=None):
         now = int(now or clock.time())
@@ -333,6 +343,10 @@ class Bridge:
                     for item in update.stop_time_update:
                         if item.stop_sequence > sequence:
                             break
+                        if item.stop_sequence == sequence and item.schedule_relationship == pb.TripUpdate.StopTimeUpdate.SKIPPED:
+                            source, predicted = "SKIPPED", None
+                            observed_at = int(update.timestamp) if update.timestamp else self.last_source_time["tripupdates"]
+                            break
                         if item.schedule_relationship == pb.TripUpdate.StopTimeUpdate.NO_DATA:
                             shift = None
                             direct = False
@@ -348,7 +362,7 @@ class Bridge:
                             if event_time is not None:
                                 shift = event_time - base
                                 direct = item.stop_sequence == sequence
-                    if shift is not None:
+                    if shift is not None and source != "SKIPPED":
                         predicted = when + shift
                         vehicle_id = update.vehicle.id or ""
                         vehicle_backed = bool(vehicle_id) and "schedBasedVehicle" not in vehicle_id
@@ -374,8 +388,19 @@ class Bridge:
 
     def status(self):
         now = int(clock.time())
+        live = self.active("tripupdates", now) or []
+        directly_updated = sum(
+            sum(1 for stu in entity.trip_update.stop_time_update
+                if stu.HasField("arrival") or stu.HasField("departure"))
+            for entity in live if entity.HasField("trip_update"))
+        referenced_stops = sum(
+            len(self.index.trip_stops.get(entity.trip_update.trip.trip_id, []))
+            for entity in live if entity.HasField("trip_update"))
         with self.lock:
             return {"type": "derived_gtfsrt_bridge",
+                    "matched_trip_stop_updates": directly_updated,
+                    "matched_trip_scheduled_stop_rows": referenced_stops,
+                    "note": "coverage counts include past and future stops; measure future-only coverage separately",
                     "upstream": "Ride Guide",
                     "timestamp": now,
                     "freshness_seconds": STALE_SECONDS,
