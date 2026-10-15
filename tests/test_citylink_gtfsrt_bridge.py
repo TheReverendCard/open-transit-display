@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 from zipfile import ZipFile
 
 from google.transit import gtfs_realtime_pb2 as pb
@@ -144,6 +145,38 @@ class CitylinkRealtimeTests(unittest.TestCase):
         self.bridge.ingest(message(self.now), self.now)
         self.bridge.ingest(message(self.now + 1, source_id="UNKNOWN"), self.now + 1)
         self.assertEqual(len(self.bridge.active("tripupdates", self.now + 1)), 0)
+
+    def test_old_prediction_not_rejuvenated_by_fresh_feed_header(self):
+        old = pb.FeedMessage()
+        old.ParseFromString(message(self.now))
+        old.entity[0].trip_update.timestamp = self.now - 100
+        # The envelope is new, but the actual vehicle-backed estimate is stale.
+        old.header.timestamp = self.now
+        self.bridge.ingest(old.SerializeToString(), self.now)
+        self.assertEqual(self.bridge.active("tripupdates", self.now), [])
+        self.assertEqual(self.bridge.stop_arrivals("s2", now=self.now)
+                         ["arrivals"][0]["source"], "SCHED")
+
+    def test_skipped_stop_never_offers_boarding_eta(self):
+        feed = pb.FeedMessage()
+        feed.ParseFromString(message(self.now))
+        skip = feed.entity[0].trip_update.stop_time_update.add()
+        skip.stop_id = "s2"
+        skip.stop_sequence = 2
+        skip.schedule_relationship = pb.TripUpdate.StopTimeUpdate.SKIPPED
+        self.bridge.ingest(feed.SerializeToString(), self.now)
+        result = self.bridge.stop_arrivals("s2", now=self.now)
+        self.assertEqual(result["arrivals"][0]["source"], "SKIPPED")
+        self.assertIsNone(result["arrivals"][0]["predicted"])
+
+    def test_health_counts_static_vs_direct_provider_stop_updates(self):
+        self.bridge.ingest(message(self.now), self.now)
+        # Do not interpret this as future-stop coverage: it includes past stops.
+        with mock.patch.object(module.clock, "time", return_value=self.now):
+            health = self.bridge.status()
+        self.assertEqual(health["matched_trip_stop_updates"], 1)
+        self.assertEqual(health["matched_trip_scheduled_stop_rows"], 3)
+
 
 
 if __name__=="__main__":
