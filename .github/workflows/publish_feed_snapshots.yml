@@ -69,7 +69,7 @@ jobs:
             git -C "$publication" checkout --orphan feed-data
             git -C "$publication" rm -rf .
           fi
-          if [ -d data/publication/citylink/stops ]; then
+          if [ -f data/publication/citylink/stops/index.json ]; then
             rm -rf "$publication/citylink/stops"
           fi
           cp -R data/publication/. "$publication/"
