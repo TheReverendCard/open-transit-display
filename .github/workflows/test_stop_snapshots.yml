@@ -1,0 +1,27 @@
+name: Test dated stop timetable snapshots
+on:
+  push:
+    paths:
+      - collector/build_stop_snapshots.py
+      - tests/test_stop_snapshots.py
+      - .github/workflows/test_stop_snapshots.yml
+  pull_request:
+    paths:
+      - collector/build_stop_snapshots.py
+      - tests/test_stop_snapshots.py
+      - .github/workflows/publish_feed_snapshots.yml
+      - .github/workflows/test_stop_snapshots.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test date coverage, checksum and device capacity
+        run: python -m unittest discover -s tests -p 'test_*.py'

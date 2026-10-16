@@ -1,6 +1,6 @@
 # Reference firmware
 
-The first firmware target will be a Wi-Fi shop-window display. Hardware selection is not final yet, so this directory currently defines required behaviour rather than tying the project to one board.
+The first hardware test target is the TRMNL OG 7.5-inch kit with XIAO ESP32-S3 Plus and EE04 UC8179 800x480 display.  The website USB renderer and Museum direct-LoRa alpha are separate test paths.  This directory defines required behaviour; implemented capabilities must be checked against the selected build.
 
 ## Current font and firmware responsibilities
 
@@ -9,7 +9,11 @@ See the [responsibility assignment and handoff contract](../docs/site-fonts-and-
 - **Website/layout conversation** owns source font assets, licensing/provenance documentation, automated font conversion and the reusable GitHub Actions font-generation step.
 - **Hardware-testing conversation** (Museum-stop display and LoRa testing) owns consuming the generated fonts in Seeed_GFX, compiling ready-to-flash firmware, and validating the display on hardware.
 - The hardware-testing conversation continues Museum-stop rendering, structured LoRa arrivals, regional refresh, daytime/nighttime clock behaviour and timetable-aware sleep/wake.
-- Font conversion is still pending with the website/layout conversation. Neither conversation should refer conversion back to the other.
+- Font conversion and its reusable GitHub Actions job are delivered and tested: [font package and integration guide](fonts/README.md), [successful build](https://github.com/TheReverendCard/open-transit-display/actions/runs/38363649629). The hardware conversation now integrates the generated package into its next firmware version and validates physical rendering. Neither conversation should hand the conversion task back.
+
+## Website setup and battery-test coordination
+
+See [website firmware battery-test alignment](../docs/website-firmware-battery-test-alignment.md) for current capabilities, next-version setup steps and release checks.  Do not replace the Museum battery-test firmware with the website USB renderer during an endurance test.  Overnight periodic check-ins are a next-version requirement, not implemented in the current Museum alpha.
 
 ## Non-negotiable fallback behaviour
 
@@ -73,8 +77,10 @@ next service > 60 min      long sleep
 5-20 min                   wake every 2-5 min
 < 5 min                    wake every 30-60 sec
 service passed             return to long sleep
-no more services today     sleep until pre-service window tomorrow
+no more services today     periodic overnight check-ins + pre-service wake
 ```
+
+Proposed overnight policy:  poll every 15 minutes, optionally 5 minutes for shorter alert latency, or 30 minutes in low-battery conservation.  Wake at the earlier of the next poll and 15–20 minutes before the next valid service.  These values require hardware testing.  Clock updates alone must not wake the device.  Queue timetable changes, cancellations and alerts at the gateway until the next check-in; delivery latency depends on the poll interval and retries.
 
 Mains-powered nodes may choose to remain awake because they can contribute gateway/repeater capacity to the mesh.
 

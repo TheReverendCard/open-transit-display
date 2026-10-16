@@ -1,6 +1,11 @@
 name: Compare NRC routes with Ride Guide IDs
 
 on:
+  push:
+    paths:
+      - .github/workflows/compare_nrc_rideguide.yml
+      - analysis/download_recent_artifacts.py
+      - analysis/compare_nrc_rideguide_routes.py
   workflow_dispatch:
   schedule:
     - cron: "5 14 * * *"
@@ -34,6 +39,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ARTIFACT_DAYS: "14"
+          # Route-ID discovery needs recent samples, not every historical archive.
+          ARTIFACT_MAX_COUNT: "10"
+          ARTIFACT_ALLOW_PARTIAL: "true"
           ARTIFACT_OUTPUT_DIR: data/artifacts
         run: python analysis/download_recent_artifacts.py
 
@@ -51,5 +59,6 @@ jobs:
           path: |
             data/nrc_arcgis/*
             data/source_compare/*
+            data/artifacts/download_summary.json
           retention-days: 90
           if-no-files-found: error
