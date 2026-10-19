@@ -1,12 +1,12 @@
 {
   "provider": "metro",
-  "fetched_at": "2026-10-18T16:44:58.479763+00:00",
-  "sha256": "36ce79ec3e2482ff3174bec4cf58cf28e3851fd26512df71e3b99dfa6b85366f",
-  "bytes": 6172514,
+  "fetched_at": "2026-10-19T19:25:44.995060+00:00",
+  "sha256": "39daf64c2d4ff13877ce2e4b26d33d85b0be788eb722c88731001294f8fae1fa",
+  "bytes": 6175860,
   "tables": {
     "ok": true,
     "key_slot": "primary",
-    "bytes": 6172514,
+    "bytes": 6175860,
     "agency.txt": 1,
     "routes.txt": 60,
     "stop_times.txt": 499082,
@@ -16,15 +16,11 @@
   "attribution": "Environment Canterbury, CC BY 4.0",
   "service_windows": {
     "timezone": "Pacific/Auckland",
-    "covered_from": 1792321200,
-    "covered_until": 1793185200,
+    "covered_from": 1792407600,
+    "covered_until": 1793271600,
     "lead_seconds": 900,
     "late_grace_seconds": 1800,
     "intervals": [
-      [
-        1792255140,
-        1792323420
-      ],
       [
         1792338780,
         1792412100
@@ -64,6 +60,10 @@
       [
         1793116380,
         1793189700
+      ],
+      [
+        1793202780,
+        1793276100
       ]
     ]
   },
