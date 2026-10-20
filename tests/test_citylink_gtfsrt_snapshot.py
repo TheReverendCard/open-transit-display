@@ -47,6 +47,21 @@ class SnapshotTests(unittest.TestCase):
             "otd-citylink-gtfsrt-snapshot-v1"
         )
 
+    def test_stop_json_has_route_identity_and_original_observation_time(self):
+        self.bridge.ingest(message(self.now, add_last=True), self.now)
+        manifest = module.export(
+            self.index, self.bridge, self.root / "out", REVISION, self.now,
+            stop_id="s2", route_id="1102", route_label="6"
+        )
+        path = self.root / "out/citylink/stops/s2/6.json"
+        data = json.loads(path.read_text())
+        self.assertEqual(data["stop_id"], "s2")
+        self.assertEqual(data["static_feed_commit"], REVISION)
+        self.assertEqual(data["arrivals"][0]["route_id"], "1102")
+        self.assertIsNotNone(data["arrivals"][0]["observed_at"])
+        self.assertEqual(manifest["stop_snapshots"][0]["path"],
+                         "citylink/stops/s2/6.json")
+
     def test_stale_prediction_cannot_become_fresh_publication(self):
         self.bridge.ingest(message(self.now), self.now)
         doc = module.export(self.index, self.bridge, self.root / "out", REVISION, self.now + 700)
