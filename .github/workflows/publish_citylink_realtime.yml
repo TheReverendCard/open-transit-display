@@ -1,0 +1,135 @@
+name: Prepare optional CityLink GTFS-Realtime snapshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish to the public realtime-data branch (also requires confirmed rights setting)"
+        type: boolean
+        required: true
+        default: false
+  schedule:
+    # Scheduled workflows only run from main, after a separate PR merge.
+    # GitHub may delay/omit runs. This is NOT a guaranteed five-minute service.
+    - cron: "2-59/5 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: citylink-realtime-data
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    # No scheduled collection or public exposure until explicitly authorized.
+    if: github.event_name == 'workflow_dispatch' || vars.CITYLINK_RT_PUBLICATION_AUTHORIZED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install protobuf bridge dependencies
+        run: python -m pip install gtfs-realtime-bindings websockets
+
+      - name: Fetch matching static GTFS and trip-map revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin +refs/heads/feed-data:refs/remotes/origin/feed-data
+          commit="$(git rev-parse origin/feed-data)"
+          mkdir -p data/citylink-static
+          git show "origin/feed-data:citylink/gtfs.zip" > data/citylink-static/gtfs.zip
+          git show "origin/feed-data:citylink/trip-map.json" > data/citylink-static/trip-map.json
+          echo "STATIC_COMMIT=$commit" >> "$GITHUB_ENV"
+
+      - name: Check verified active service window
+        id: window
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import time
+          from collector.service_windows import windows
+          info = windows("data/citylink-static/gtfs.zip")
+          now = int(time.time())
+          covered = info["covered_from"] <= now < info["covered_until"]
+          active = covered and any(a <= now <= b for a, b in info["intervals"])
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write(f"active={str(active).lower()}\n")
+          print(f"Static coverage valid: {covered}; active service window: {active}")
+          PY
+
+      - name: Collect bounded upstream feed and normalize snapshots
+        if: steps.window.outputs.active == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          python collector/publish_citylink_gtfsrt_snapshot.py \
+            --gtfs data/citylink-static/gtfs.zip \
+            --trip-map data/citylink-static/trip-map.json \
+            --static-commit "$STATIC_COMMIT" \
+            --output data/realtime-candidate \
+            --collect-seconds 40
+
+      - name: Verify all three standard protobuf snapshots and static revision
+        if: steps.window.outputs.active == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from google.transit import gtfs_realtime_pb2 as pb
+          root=Path("data/realtime-candidate/citylink")
+          manifest=json.loads((root/"manifest.json").read_text())
+          assert manifest["static_feed_commit"] == os.environ["STATIC_COMMIT"]
+          for kind in ("tripupdates", "vehiclepositions", "alerts"):
+              obj=pb.FeedMessage()
+              obj.ParseFromString((root/(kind+".pb")).read_bytes())
+              assert obj.header.gtfs_realtime_version == "2.0"
+              assert obj.header.incrementality == pb.FeedHeader.FULL_DATASET
+              assert len(obj.entity) == manifest["feeds"][kind]["entities"]
+              print(kind, "entities", len(obj.entity))
+          PY
+
+      - name: Publish approved snapshots to separate realtime-data branch
+        if: >-
+          steps.window.outputs.active == 'true' &&
+          vars.CITYLINK_RT_PUBLICATION_AUTHORIZED == 'true' &&
+          (github.event_name == 'schedule' || inputs.publish == true)
+        shell: bash
+        run: |
+          set -euo pipefail
+          publish_dir="$RUNNER_TEMP/citylink-realtime-publish"
+          if git ls-remote --exit-code --heads origin realtime-data >/dev/null; then
+            git fetch origin +refs/heads/realtime-data:refs/remotes/origin/realtime-data
+            git worktree add --detach "$publish_dir" origin/realtime-data
+            git -C "$publish_dir" checkout -B realtime-data
+          else
+            git worktree add --detach "$publish_dir" HEAD
+            git -C "$publish_dir" checkout --orphan realtime-data
+            git -C "$publish_dir" rm -rf .
+          fi
+          mkdir -p "$publish_dir/citylink"
+          cp -a data/realtime-candidate/citylink/. "$publish_dir/citylink/"
+          PUBLISH_DIR="$publish_dir" python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          from datetime import datetime, timezone
+          path=Path(os.environ["PUBLISH_DIR"])/"citylink/manifest.json"
+          m=json.loads(path.read_text())
+          m["publication_started_at_utc"]=datetime.now(timezone.utc).isoformat(timespec="seconds")
+          path.write_text(json.dumps(m, indent=2, sort_keys=True)+"\n", encoding="utf-8")
+          PY
+          git -C "$publish_dir" config user.name 'github-actions[bot]'
+          git -C "$publish_dir" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C "$publish_dir" add citylink/
+          if git -C "$publish_dir" diff --cached --quiet; then
+            echo "No changed files."
+            exit 0
+          fi
+          git -C "$publish_dir" commit -m "Publish timestamped CityLink GTFS-RT snapshot"
+          git -C "$publish_dir" push origin HEAD:refs/heads/realtime-data
