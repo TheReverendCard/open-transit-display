@@ -1,6 +1,10 @@
 # CityLink canonical GTFS-Realtime bridge
 
-**Development code only. Not a deployed public service.**
+**Development code only. Not a deployed public service.** The owner-selected
+initial publication mode is a five-minute GitHub Actions snapshot workflow,
+currently publication-disabled until data rights are verified. See
+[GitHub snapshot publication](citylink-github-realtime-publication.md).
+The always-on bridge below is an **optional** lower-latency host profile.
 
 CityLink's date-specific, derived static GTFS is already published at
 https://github.com/TheReverendCard/open-transit-display/tree/feed-data/citylink
@@ -18,10 +22,14 @@ validated feed-data revision. Then:
     python collector/citylink_gtfsrt_bridge.py --gtfs ./citylink/gtfs.zip --trip-map ./citylink/trip-map.json --host 127.0.0.1 --port 8787
 
 This process subscribes once to the Ride Guide WebSocket (organisation 104).
-It must run continuously on a NAS, dedicated gateway or cloud server behind
-a trusted HTTPS reverse proxy. GitHub hosts **nightly static timetables** and
-the bridge code, not a 30-second real-time streaming service. Check provider
-redistribution terms before exposing the feed publicly.
+In **optional continuously hosted mode** this process runs on a NAS,
+dedicated gateway or cloud server behind a trusted HTTPS reverse proxy.
+For the owner-approved initial hosted-file approach, the separate GitHub
+snapshot generator and rights-gated workflow create standard protobuf
+snapshots on `realtime-data`, apart from nightly `feed-data` static
+timetables. GitHub is not a 30-second streaming server and scheduled
+workflows have no guaranteed execution time. Check provider redistribution
+terms before exposing either feed publicly.
 
 ## HTTP interface
 
