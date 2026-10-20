@@ -146,6 +146,45 @@ class CitylinkRealtimeTests(unittest.TestCase):
         self.bridge.ingest(message(self.now + 1, source_id="UNKNOWN"), self.now + 1)
         self.assertEqual(len(self.bridge.active("tripupdates", self.now + 1)), 0)
 
+    def test_unscoped_empty_feed_does_not_clear_recent_other_kinds(self):
+        # Provider multiplexes TripUpdates, VehiclePositions, Alerts.
+        # An empty protobuf does not indicate which feed kind is empty.
+        feed = pb.FeedMessage()
+        feed.ParseFromString(message(self.now))
+        vp = feed.entity.add()
+        vp.id = "vp13"
+        position = vp.vehicle
+        position.trip.trip_id = "13"
+        position.trip.route_id = "1102"
+        position.trip.start_date = "20261016"
+        position.timestamp = self.now
+        position.stop_id = "s2"
+        position.current_stop_sequence = 2
+        position.position.latitude = -35.72
+        position.position.longitude = 174.32
+        self.assertTrue(self.bridge.ingest(feed.SerializeToString(), self.now))
+        self.assertEqual(len(self.bridge.active("tripupdates", self.now)), 1)
+        self.assertEqual(len(self.bridge.active("vehiclepositions", self.now)), 1)
+
+        empty = pb.FeedMessage()
+        empty.header.gtfs_realtime_version = "2.0"
+        empty.header.timestamp = self.now + 10
+        self.assertTrue(self.bridge.ingest(empty.SerializeToString(), self.now + 10))
+        self.assertEqual(len(self.bridge.active("tripupdates", self.now + 10)), 1)
+        self.assertEqual(len(self.bridge.active("vehiclepositions", self.now + 10)), 1)
+        self.assertEqual(self.bridge.last_source_time["tripupdates"], self.now)
+        self.assertEqual(self.bridge.last_source_time["vehiclepositions"], self.now)
+        with mock.patch.object(module.clock, "time", return_value=self.now + 10):
+            status = self.bridge.status()
+        self.assertEqual(status["counters"]["empty_feed_packets"], 1)
+        self.assertEqual(status["counters"]["unscoped_empty_feeds_ignored"], 1)
+
+        # Even another recent empty envelope cannot revive stale entities.
+        empty.header.timestamp = self.now + 100
+        self.assertTrue(self.bridge.ingest(empty.SerializeToString(), self.now + 100))
+        self.assertIsNone(self.bridge.active("tripupdates", self.now + 100))
+        self.assertIsNone(self.bridge.active("vehiclepositions", self.now + 100))
+
     def test_old_prediction_not_rejuvenated_by_fresh_feed_header(self):
         old = pb.FeedMessage()
         old.ParseFromString(message(self.now))
