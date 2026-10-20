@@ -323,11 +323,13 @@ class Bridge:
             self.accepted += counts["accepted"]
             self.unmatched += counts["unmatched"]
             if not feed.entity:
-                # Empty FULL_DATASET is meaningful; no stale predictions should persist.
-                for kind in KINDS:
-                    self.cache[kind] = {}
-                    self.last_packet[kind] = received_at
-                    self.last_source_time[kind] = source_time
+                # Ride Guide multiplexes three GTFS-RT streams on this socket.
+                # An empty protobuf has no feed-kind discriminator. It might be
+                # an empty alerts feed; clearing all cached kinds would erase a
+                # newly accepted TripUpdate/VehiclePosition. Do not refresh their
+                # source timestamps either. Existing entities expire at their
+                # original entity/source timestamp, never from this envelope.
+                self.counters["unscoped_empty_feeds_ignored"] += 1
             else:
                 for kind in KINDS:
                     # The upstream WebSocket may deliver different entity kinds in
