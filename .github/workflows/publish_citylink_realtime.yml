@@ -72,6 +72,7 @@ jobs:
             --trip-map data/citylink-static/trip-map.json \
             --static-commit "$STATIC_COMMIT" \
             --output data/realtime-candidate \
+            --stop-id 11000262 --route-id 1106 --route-label 6 \
             --collect-seconds 40
 
       - name: Verify all three standard protobuf snapshots and static revision
