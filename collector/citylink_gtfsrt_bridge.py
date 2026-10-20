@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from collections import Counter
 import csv
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta
@@ -242,19 +243,53 @@ class Bridge:
         self.last_source_time = {k: 0 for k in KINDS}
         self.unmatched = 0
         self.accepted = 0
+        self.started_at = int(clock.time())
+        self.connected = False
+        self.last_connected_at = 0
+        self.last_disconnected_at = 0
+        self.counters = Counter()
+
+    def connection_state(self, connected):
+        """Track WebSocket connection separately from source-data freshness."""
+        now = int(clock.time())
+        with self.lock:
+            if connected and not self.connected:
+                self.counters["connections"] += 1
+                if self.last_disconnected_at:
+                    self.counters["reconnections"] += 1
+                self.last_connected_at = now
+            elif not connected and self.connected:
+                self.last_disconnected_at = now
+            self.connected = connected
+
+    def record_error(self, error_type):
+        """Bounded set of operational counters; never log credentials or packets."""
+        if error_type not in ("decode_errors", "connection_errors"):
+            raise ValueError("unsupported error type")
+        with self.lock:
+            self.counters[error_type] += 1
 
     def ingest(self, blob: bytes, received_at=None):
         received_at = received_at or int(clock.time())
         feed = pb.FeedMessage()
         feed.ParseFromString(blob)
         source_time = int(feed.header.timestamp or received_at)
+        with self.lock:
+            self.counters["packets_seen"] += 1
         if source_time > received_at + 60 or received_at - source_time > ALERT_STALE_SECONDS:
+            with self.lock:
+                self.counters["rejected_stale_or_future_envelopes"] += 1
             return False
         batches = {kind: {} for kind in KINDS}
+        counts = Counter()
+        if not feed.entity:
+            counts["empty_feed_packets"] += 1
         for entity in feed.entity:
             kind = kind_of(entity)
             if kind is None:
+                counts["unknown_entity_types"] += 1
                 continue
+            counts["seen_" + kind] += 1
             # A fresh envelope may contain an old vehicle position or old
             # trip prediction. Never extend an entity's life using the envelope.
             entity_time = int(entity.trip_update.timestamp or source_time) if kind == "tripupdates" else (
@@ -262,15 +297,31 @@ class Bridge:
                 else source_time)
             ttl = ALERT_STALE_SECONDS if kind == "alerts" else STALE_SECONDS
             if entity_time > received_at + 60 or received_at - entity_time > ttl:
+                counts["rejected_stale_or_future_" + kind] += 1
+                continue
+            descriptor = (entity.trip_update.trip if kind == "tripupdates"
+                          else entity.vehicle.trip if kind == "vehiclepositions" else None)
+            if descriptor is not None and not descriptor.start_date:
+                counts["rejected_missing_start_date_" + kind] += 1
+                counts["unmatched"] += 1
                 continue
             out = remap_entity(entity, self.index)
             if out is None:
-                self.unmatched += 1
+                if kind == "tripupdates" and not entity.trip_update.stop_time_update and (
+                        entity.trip_update.trip.schedule_relationship != pb.TripDescriptor.CANCELED):
+                    counts["rejected_no_stop_updates"] += 1
+                else:
+                    counts["rejected_unmatched_" + kind] += 1
+                counts["unmatched"] += 1
                 continue
             ident = out.id or (kind + ":" + str(len(batches[kind])))
             batches[kind][ident] = (out, entity_time)
-            self.accepted += 1
+            counts["accepted_" + kind] += 1
+            counts["accepted"] += 1
         with self.lock:
+            self.counters.update(counts)
+            self.accepted += counts["accepted"]
+            self.unmatched += counts["unmatched"]
             if not feed.entity:
                 # Empty FULL_DATASET is meaningful; no stale predictions should persist.
                 for kind in KINDS:
@@ -387,29 +438,81 @@ class Bridge:
                 "arrivals": results[:limit]}
 
     def status(self):
+        """Operational snapshot. Coverage is of currently accepted trips only."""
         now = int(clock.time())
-        live = self.active("tripupdates", now) or []
-        directly_updated = sum(
-            sum(1 for stu in entity.trip_update.stop_time_update
-                if stu.HasField("arrival") or stu.HasField("departure"))
-            for entity in live if entity.HasField("trip_update"))
-        referenced_stops = sum(
-            len(self.index.trip_stops.get(entity.trip_update.trip.trip_id, []))
-            for entity in live if entity.HasField("trip_update"))
         with self.lock:
-            return {"type": "derived_gtfsrt_bridge",
-                    "matched_trip_stop_updates": directly_updated,
-                    "matched_trip_scheduled_stop_rows": referenced_stops,
-                    "note": "coverage counts include past and future stops; measure future-only coverage separately",
-                    "upstream": "Ride Guide",
-                    "timestamp": now,
-                    "freshness_seconds": STALE_SECONDS,
-                    "received_at": self.last_packet.copy(),
-                    "upstream_timestamp": self.last_source_time.copy(),
-                    "accepted_entities": self.accepted,
-                    "unmatched_entities": self.unmatched,
-                    "static_trips": len(self.index.trips),
-                    "trip_update_entities": len(self.cache["tripupdates"])}
+            live = self.active("tripupdates", now) or []
+            directly_updated = sum(
+                sum(1 for stu in entity.trip_update.stop_time_update
+                    if stu.HasField("arrival") or stu.HasField("departure"))
+                for entity in live if entity.HasField("trip_update"))
+            referenced_stops = sum(
+                len(self.index.trip_stops.get(entity.trip_update.trip.trip_id, []))
+                for entity in live if entity.HasField("trip_update"))
+
+            # Do not divide direct predictions by entire-day or already-passed stops.
+            # This is an instantaneous diagnostic, NOT service-day ETA availability.
+            future_scheduled = future_direct = 0
+            source_counts = Counter()
+            for entity in live:
+                tu = entity.trip_update
+                vehicle_id = tu.vehicle.id or ""
+                source = ("schedule_based" if "schedBasedVehicle" in vehicle_id else
+                          "vehicle_assigned" if vehicle_id else "unknown")
+                source_counts[source] += 1
+                eligible = {stop.sequence for stop in
+                            self.index.trip_stops.get(tu.trip.trip_id, [])
+                            if stop.departure >= now - 120}
+                actual = {item.stop_sequence for item in tu.stop_time_update
+                          if item.stop_sequence in eligible
+                          and (item.HasField("arrival") or item.HasField("departure"))}
+                future_scheduled += len(eligible)
+                future_direct += len(actual)
+
+            feed_age = {
+                k: (max(0, now - self.last_source_time[k])
+                    if self.last_source_time[k] else None) for k in KINDS
+            }
+            receive_age = {
+                k: (max(0, now - self.last_packet[k])
+                    if self.last_packet[k] else None) for k in KINDS
+            }
+            available = {k: self.active(k, now) is not None for k in KINDS}
+            return {
+                "type": "derived_gtfsrt_bridge",
+                "upstream": "Ride Guide",
+                "timestamp": now,
+                "uptime_seconds": max(0, now - self.started_at),
+                "websocket_connected": self.connected,
+                "last_connected_at": self.last_connected_at or None,
+                "last_disconnected_at": self.last_disconnected_at or None,
+                "freshness_seconds": STALE_SECONDS,
+                "received_at": self.last_packet.copy(),
+                "upstream_timestamp": self.last_source_time.copy(),
+                "feed_source_age_seconds": feed_age,
+                "feed_receive_age_seconds": receive_age,
+                "feed_fresh": available,
+                "accepted_entities": self.accepted,
+                "unmatched_entities": self.unmatched,
+                "counters": dict(self.counters),
+                "static_trips": len(self.index.trips),
+                "trip_update_entities": len(self.cache["tripupdates"]),
+                "active_trip_update_entities": len(live),
+                "active_trip_update_source_counts": dict(source_counts),
+                "matched_trip_stop_updates": directly_updated,
+                "matched_trip_scheduled_stop_rows": referenced_stops,
+                "active_future_scheduled_stop_rows": future_scheduled,
+                "active_direct_future_stop_updates": future_direct,
+                "active_direct_future_stop_coverage_percent": (
+                    round(100 * future_direct / future_scheduled, 2)
+                    if future_scheduled else None),
+                "note": (
+                    "Future-stop diagnostic covers only currently accepted "
+                    "trips with scheduled departures >= now-120s; it is not "
+                    "whole-day service availability and excludes late stops "
+                    "whose scheduled time has already passed."
+                )
+            }
 
 
 def handler_factory(bridge):
@@ -460,18 +563,27 @@ async def receive_forever(bridge, ws_url):
                                           ping_interval=20, ping_timeout=20,
                                           max_size=8_000_000) as ws:
                 await ws.send(json.dumps(SUBSCRIBE))
+                bridge.connection_state(True)
                 LOG.info("Ride Guide GTFS-RT stream connected")
-                async for message in ws:
-                    if isinstance(message, bytes):
-                        try:
-                            bridge.ingest(message)
-                        except Exception:
-                            LOG.exception("Rejected malformed upstream protobuf")
+                try:
+                    async for message in ws:
+                        if isinstance(message, bytes):
+                            try:
+                                bridge.ingest(message)
+                            except Exception:
+                                bridge.record_error("decode_errors")
+                                LOG.exception("Rejected malformed upstream protobuf")
+                finally:
+                    bridge.connection_state(False)
         except asyncio.CancelledError:
+            bridge.connection_state(False)
             raise
         except Exception:
+            bridge.connection_state(False)
+            bridge.record_error("connection_errors")
             LOG.exception("Ride Guide disconnected; retrying after 5 seconds")
-            await asyncio.sleep(5)
+        # Also throttle a clean WebSocket close to avoid reconnect hot loops.
+        await asyncio.sleep(5)
 
 
 def main():
