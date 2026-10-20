@@ -115,6 +115,51 @@ degrade to SCHED after expiry even without a subsequent publication.
    outside this public GitHub branch. Do not claim new ESP32 code has
    been physically verified.
 
+## Real Ride Guide smoke validation: 20 October 2026
+
+A **pull-request-only smoke event** was added to the workflow, limited to
+pull requests from the same repository. This allowed a real provider capture
+on the draft branch **without merging or authorizing public redistribution**.
+The smoke job neither uploads candidate artifacts nor pushes to any data branch.
+The standard protobuf/manifest verifier runs on the ephemeral CI runner.
+
+At **14:21 NZDT** ([run 39352876415](https://github.com/TheReverendCard/open-transit-display/actions/runs/39352876415)),
+a 40-second capture in a verified active service window received 13 websocket
+packets with 25 accepted TripUpdates and 25 accepted VehiclePositions, but
+the final snapshot had zero of either type. This was a **real bug**:
+three upstream messages contained no entities, and the initial bridge code
+treated each *unscoped* empty protobuf as a command to erase caches for
+all three feed kinds. Since this WebSocket multiplexes feed types, an
+empty message lacks sufficient information to invalidate any particular kind.
+The original source timestamps were fresh; the missing predictions were
+not simply too old.
+
+The fix in commit `53713a3` preserves currently accepted, typed observations
+when an **unscoped empty feed message** arrives. It does **not** advance their
+timestamps or keep them alive past the original 90-second TTL; a later
+typed FULL_DATASET still replaces its corresponding cache, and expired
+entries are omitted. A synthetic regression test covers an interleaved
+TripUpdate + VehiclePosition followed by empty packets and expiration.
+
+Rechecking the **same active service period**:
+- [Run 39353090915](https://github.com/TheReverendCard/open-transit-display/actions/runs/39353090915) at 14:23 NZDT: 13 source packets, 25 TripUpdates accepted, 25 VehiclePositions accepted; snapshot **5 TripUpdates, 5 VehiclePositions**, 0 alerts. TripUpdate source age at generation: **7 seconds**; oldest included entity: **8 seconds**.
+- [Run 39353120288](https://github.com/TheReverendCard/open-transit-display/actions/runs/39353120288) at 14:25 NZDT: snapshot **5 TripUpdates, 0 VehiclePositions**, 0 alerts. That is permissible for a FULL_DATASET after typed updates, but per-kind availability still needs repeated field measurement; the accepted-during-capture counter is **not** the number of active entities at snapshot time.
+- Both used paired static GTFS + trip-map from commit
+  `e6b4cbc5fa5bd83713b49c9de5e77505119a1a38` on `feed-data`.
+- [Unit test run 39353120480](https://github.com/TheReverendCard/open-transit-display/actions/runs/39353120480):
+  **23 tests passed**, Python compilation passed, including empty-message
+  regression and stale expiration.
+- All public pushes remained **disabled**. No `realtime-data` publication,
+  gateway update, or production deployment was performed.
+
+**Interpretation:** We have now verified that a real, source-fed standard
+GTFS-Realtime **TripUpdates** protobuf snapshot can retain and export valid
+matched entities. A few short smoke captures are not continuous five-minute
+publishing evidence, do not prove route/stop live availability across a day,
+and do not authorize a public release. Alerts were absent in this sample,
+not verified positive. The service-window, caching, external availability,
+publication rights and physical e-paper gateway tests remain outstanding.
+
 ## CI failure review (20 October)
 
 Three intermediate revisions of PR #12 failed the same test:
