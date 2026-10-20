@@ -1,0 +1,29 @@
+# Example only. Replace the paths/user and verify provider permission before public hosting.
+# Install as /etc/systemd/system/citylink-gtfsrt.service on a trusted always-on host.
+[Unit]
+Description=CityLink Ride Guide to GTFS-Realtime bridge (local only)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=citylink-bridge
+Group=citylink-bridge
+WorkingDirectory=/opt/open-transit-display
+ExecStart=/opt/open-transit-display/.venv/bin/python /opt/open-transit-display/collector/citylink_gtfsrt_bridge.py --gtfs /opt/open-transit-display/data/citylink/gtfs.zip --trip-map /opt/open-transit-display/data/citylink/trip-map.json --host 127.0.0.1 --port 8787
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+UMask=0077
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
