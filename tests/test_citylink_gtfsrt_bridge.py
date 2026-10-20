@@ -178,9 +178,9 @@ class CitylinkRealtimeTests(unittest.TestCase):
         self.assertEqual(health["matched_trip_scheduled_stop_rows"], 3)
 
     def test_health_counts_only_upcoming_direct_stop_predictions(self):
-        # First stop has passed, and only the terminal has a direct future ETA.
+        # The first stop is 121 seconds past and outside the 120-second grace.
         self.bridge.ingest(message(self.now, add_last=True), self.now)
-        with mock.patch.object(module.clock, "time", return_value=self.now):
+        with mock.patch.object(module.clock, "time", return_value=self.now + 1):
             health = self.bridge.status()
         self.assertEqual(health["active_future_scheduled_stop_rows"], 2)
         self.assertEqual(health["active_direct_future_stop_updates"], 1)
