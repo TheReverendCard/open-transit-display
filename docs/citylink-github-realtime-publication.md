@@ -160,6 +160,48 @@ and do not authorize a public release. Alerts were absent in this sample,
 not verified positive. The service-window, caching, external availability,
 publication rights and physical e-paper gateway tests remain outstanding.
 
+## Metadata-only five-minute monitoring (step 2)
+
+The separate [read-only monitor workflow](../.github/workflows/monitor_citylink_realtime.yml)
+records actual GitHub Actions run starts, coverage validity, normalized-feed
+entity counts, source ages and oldest included entity ages. It is distinct
+from the public snapshot publisher, and uses only `contents: read`.
+It **never commits to `realtime-data`, uploads raw protobuf as artifacts,
+or retains vehicle locations/individual predictions**. Its short-lived
+capture files are discarded with the GitHub runner; only aggregate
+observability metrics and timestamps remain in the Actions logs / step
+summary.
+
+- Cron requests sampling at minute 02, 07, 12, etc. GitHub may omit or
+  delay triggers; compare observed Actions run start times with those
+  nominal slots to measure real scheduling coverage. The workflow cannot
+  guarantee 5-minute arrival of a published file.
+- Static `gtfs.zip` and `trip-map.json` are fetched at one
+  `feed-data` commit and checked for current date/service windows.
+- Outside the verified service window, the monitor logs
+  `CITYLINK_MONITOR_WINDOW ... active=false`, skips the provider WebSocket,
+  and doesn't install protobuf dependencies.
+- During an active service window, the monitor collects 40 seconds of
+  provider data, validates all three canonical GTFS-RT protobuf snapshots
+  locally, checks their entity counts and SHA256 hashes, then logs
+  `CITYLINK_MONITOR={...}` with only aggregate metrics. A transiently
+  empty feed is not equated with a provider outage.
+- It runs on default-branch `schedule` after merge and on a same-repo PR
+  when its workflow file changes. Reviewing coverage over two full
+  weekdays and a Saturday requires those dates to elapse. No future
+  reliability claim is made from a single successful job.
+- Operational cost: GitHub cron may create ~288 runs per day, including
+  lightweight off-service checks. After the validation period, review
+  cadence, runner usage and whether to reduce or disable monitoring.
+
+**First PR monitor check:** [39384182459](https://github.com/TheReverendCard/open-transit-display/actions/runs/39384182459)
+completed successfully on 20 October at about 20:05 NZDT. It confirmed
+that the static GTFS still covered the date, found `active=false`
+after service hours, and made no provider connection or public push.
+This validates the safe off-service branch, **not** active-service
+data delivery or scheduled cadence. Subsequent scheduled runs on main
+must supply the actual two-weekday-plus-Saturday evidence.
+
 ## CI failure review (20 October)
 
 Three intermediate revisions of PR #12 failed the same test:
