@@ -82,7 +82,8 @@ def metadata(index: StaticIndex, bridge: Bridge, now: int, static_commit: str):
     }
 
 
-def export(index: StaticIndex, bridge: Bridge, root: Path, static_commit: str, now=None):
+def export(index: StaticIndex, bridge: Bridge, root: Path, static_commit: str, now=None,
+           stop_id=None, route_id=None, route_label=None):
     """Create complete atomic candidate files; never output partial publication."""
     now = int(time.time()) if now is None else int(now)
     output = root / "citylink"
@@ -107,6 +108,34 @@ def export(index: StaticIndex, bridge: Bridge, root: Path, static_commit: str, n
         (output / basename).write_bytes(data)
         manifest["feeds"][kind]["path"] = "citylink/" + basename
         manifest["feeds"][kind]["sha256"] = hashlib.sha256(data).hexdigest()
+
+    if stop_id is not None:
+        if stop_id not in index.stop_ids:
+            raise ValueError("requested stop_id not present in the static GTFS")
+        if route_id is not None and route_id not in index.routes:
+            raise ValueError("requested route_id not present in the static GTFS")
+        arrivals = bridge.stop_arrivals(stop_id, route=route_id, now=now, limit=12)
+        arrivals["static_feed_commit"] = static_commit.lower()
+        arrivals["snapshot_generated_at_utc"] = manifest["generated_at_utc"]
+        arrivals["max_consumer_age_seconds"] = MAX_CONSUMER_AGE_SECONDS
+        # Explicit upstream timestamps in arrivals are more important than
+        # the age of the GitHub or radio download for truthful LIVE labels.
+        # This label is a filename only; route matching uses canonical ID.
+        short_route = str(route_label or route_id or "all")
+        if not short_route.replace("-", "").isalnum():
+            raise ValueError("route_label must be a simple path-safe identifier")
+        folder = output / "stops" / str(stop_id)
+        folder.mkdir(parents=True, exist_ok=True)
+        relative = "citylink/stops/" + str(stop_id) + "/" + str(short_route) + ".json"
+        encoded = (json.dumps(arrivals, sort_keys=True, separators=(",", ":")) +
+                   "\n").encode("utf-8")
+        (folder / (str(short_route) + ".json")).write_bytes(encoded)
+        manifest["stop_snapshots"] = [{
+            "stop_id": stop_id,
+            "route_id": route_id,
+            "path": relative,
+            "sha256": hashlib.sha256(encoded).hexdigest(),
+        }]
 
     (output / "manifest.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -159,13 +188,18 @@ def main():
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--collect-seconds", type=int, default=COLLECTION_SECONDS_DEFAULT)
     parser.add_argument("--ws-url", default=WS_URL)
+    parser.add_argument("--stop-id", default=None)
+    parser.add_argument("--route-id", default=None)
+    parser.add_argument("--route-label", default=None)
     args = parser.parse_args()
     if not 1 <= args.collect_seconds <= 180:
         parser.error("--collect-seconds must be between 1 and 180")
     index = StaticIndex(args.gtfs, args.trip_map)
     backend = Bridge(index)
     asyncio.run(collect(backend, args.collect_seconds, args.ws_url))
-    out = export(index, backend, args.output, args.static_commit)
+    out = export(index, backend, args.output, args.static_commit,
+                 stop_id=args.stop_id, route_id=args.route_id,
+                 route_label=args.route_label)
     # Log counts, ages and revision only; never raw vehicle identifiers or locations.
     print(json.dumps({
         "generated_at_utc": out["generated_at_utc"],
