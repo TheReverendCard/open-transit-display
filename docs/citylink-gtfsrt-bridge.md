@@ -58,6 +58,55 @@ or assume a missing TripUpdate means a bus is on time. A separately evaluated
 segment-time/interpolation model might improve this later, but must be labelled
 MODELLED rather than LIVE.
 
+## Continuous host and observability
+
+The optional [systemd unit](../ops/citylink-gtfsrt.service.example) keeps the
+existing single-subscription bridge running on a trusted, always-on host.
+It is an **example only**: update paths, create a restricted service account,
+install `gtfs-realtime-bindings` and `websockets` in the local virtual
+environment, and place the same-revision `gtfs.zip` and `trip-map.json` at
+the configured paths. Test locally before enabling the service. It listens
+only on `127.0.0.1:8787`, does not expose a public endpoint, and does not
+publish any data to GitHub. A proxy and provider redistribution permission
+are separate requirements.
+
+Useful commands on the host:
+
+```sh
+sudo systemctl daemon-reload
+sudo systemctl enable --now citylink-gtfsrt.service
+sudo journalctl -u citylink-gtfsrt.service -f
+curl --fail --silent http://127.0.0.1:8787/health.json
+```
+
+`/health.json` reports WebSocket connection state and connection/reconnection
+counts; decode/connection errors; packets seen; accepted, unmatched, missing-date,
+unmapped, empty-update and stale entity counts, by feed kind where meaningful;
+source and receipt ages separately; per-feed freshness; active TripUpdate
+provenance; and *instantaneous* direct future-stop prediction coverage.
+The latter denominator is **only stops on currently accepted mapped trips**
+whose *scheduled* departure has not passed by more than two minutes. It
+is not an all-day passenger availability metric. Source ages are distinct
+from transport packet arrival ages.
+
+Alert if the WebSocket is disconnected during service hours or the TripUpdates
+feed remains stale; keep a separate zero-vehicle/no-current-trip warning
+because the network can legitimately have no active vehicles after hours.
+When a provider packet is fresh but contains no usable live entities, the
+standard protobuf endpoint can return an empty `FULL_DATASET` while passenger
+arrivals fall back to `SCHED`. Never call that live ETA availability.
+
+When the static timetable changes, **verify and atomically replace both**
+`gtfs.zip` and `trip-map.json` from one revision, then restart the bridge;
+the example unit deliberately does not automatically load partial updates.
+For validation, run the host for two complete weekdays and a Saturday,
+save periodic `/health.json` snapshots plus restricted application logs,
+and calculate service-window / per-stop percentages of fresh vehicle-backed,
+provider-estimated and timetable-only arrivals. Include stop `11000262`
+(Route 6 Whangārei Museum) in those metrics. Do not persist credentials,
+precise vehicle-location history or passenger-identifying information in
+public artifacts.
+
 ## Before production
 
 1. Verify real Ride Guide trip IDs, route IDs, start dates and stop sequences
