@@ -177,6 +177,62 @@ class CitylinkRealtimeTests(unittest.TestCase):
         self.assertEqual(health["matched_trip_stop_updates"], 1)
         self.assertEqual(health["matched_trip_scheduled_stop_rows"], 3)
 
+    def test_health_counts_only_upcoming_direct_stop_predictions(self):
+        # First stop has passed, and only the terminal has a direct future ETA.
+        self.bridge.ingest(message(self.now, add_last=True), self.now)
+        with mock.patch.object(module.clock, "time", return_value=self.now):
+            health = self.bridge.status()
+        self.assertEqual(health["active_future_scheduled_stop_rows"], 2)
+        self.assertEqual(health["active_direct_future_stop_updates"], 1)
+        self.assertEqual(health["active_direct_future_stop_coverage_percent"], 50.0)
+        self.assertEqual(health["active_trip_update_source_counts"]["vehicle_assigned"], 1)
+        self.assertTrue(health["feed_fresh"]["tripupdates"])
+        self.assertIsNone(health["feed_source_age_seconds"]["vehiclepositions"])
+
+    def test_health_rejections_differ_from_successful_packet_freshness(self):
+        self.bridge.ingest(message(self.now, source_id="missing"), self.now)
+        old = pb.FeedMessage()
+        old.ParseFromString(message(self.now))
+        old.entity[0].trip_update.timestamp = self.now - 100
+        self.bridge.ingest(old.SerializeToString(), self.now)
+        self.bridge.ingest(message(self.now, start_date=""), self.now)
+        with mock.patch.object(module.clock, "time", return_value=self.now):
+            health = self.bridge.status()
+        self.assertEqual(health["counters"]["packets_seen"], 3)
+        self.assertEqual(health["counters"]["rejected_unmatched_tripupdates"], 1)
+        self.assertEqual(health["counters"]["rejected_stale_or_future_tripupdates"], 1)
+        self.assertEqual(health["counters"]["rejected_missing_start_date_tripupdates"], 1)
+        self.assertEqual(health["accepted_entities"], 0)
+        # The envelope is fresh but carries no accepted trip updates.
+        self.assertTrue(health["feed_fresh"]["tripupdates"])
+        self.assertEqual(health["active_trip_update_entities"], 0)
+        self.assertIsNone(health["active_direct_future_stop_coverage_percent"])
+
+    def test_health_connection_metrics_separate_from_feed_freshness(self):
+        with mock.patch.object(module.clock, "time", return_value=self.now):
+            self.bridge.connection_state(True)
+            self.bridge.connection_state(False)
+            self.bridge.connection_state(True)
+            self.bridge.record_error("connection_errors")
+            self.bridge.record_error("decode_errors")
+            health = self.bridge.status()
+        self.assertTrue(health["websocket_connected"])
+        self.assertEqual(health["counters"]["connections"], 2)
+        self.assertEqual(health["counters"]["reconnections"], 1)
+        self.assertEqual(health["counters"]["connection_errors"], 1)
+        self.assertEqual(health["counters"]["decode_errors"], 1)
+        self.assertFalse(health["feed_fresh"]["tripupdates"])
+
+    def test_stale_envelope_rejected_and_recorded(self):
+        old = pb.FeedMessage()
+        old.ParseFromString(message(self.now))
+        old.header.timestamp = self.now - 601
+        self.assertFalse(self.bridge.ingest(old.SerializeToString(), self.now))
+        with mock.patch.object(module.clock, "time", return_value=self.now):
+            health = self.bridge.status()
+        self.assertEqual(health["counters"]["rejected_stale_or_future_envelopes"], 1)
+        self.assertEqual(health["accepted_entities"], 0)
+
 
 
 if __name__=="__main__":
