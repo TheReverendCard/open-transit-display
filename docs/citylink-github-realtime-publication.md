@@ -42,10 +42,14 @@ conditions and acceptable rate limits. The workflow is currently on the
 draft feature branch, and GitHub schedules only run for workflows on the
 default branch; it will not schedule on this draft by itself.
 
-A manual `workflow_dispatch` with `publish: false` is a no-publication
-smoke run. The candidate files are not uploaded as a public artifact. To
-publish requires **both** the authorization repository variable **and**
-`publish: true` on a manual run, or an authorized scheduled run after merge.
+Once the workflow file is present on the default branch (after explicit
+merge), a manual `workflow_dispatch` with `publish: false` is a
+no-publication smoke run. GitHub Actions does not run a feature-branch-only
+workflow by schedule; normal manual dispatch also requires a workflow
+registered on the default branch. The candidate files are not uploaded as
+a public artifact. To publish requires **both** the authorization repository
+variable **and** `publish: true` on a manual run, or an authorized scheduled
+run after merge.
 This is deliberately separate from the optional systemd bridge.
 
 ## Manifest / freshness contract
