@@ -1,16 +1,16 @@
 {
   "schema": "otd-stop-schedule-index-v1",
   "source": "GTFS_STATIC",
-  "static_feed_sha256": "28d5f101a6588d6d14ceb417a522d65c592217224a4d3cfd3958027d129fa442",
+  "static_feed_sha256": "dbd633344179b8b00cf9c2db069f6d59acfd34607b1b25820e8eb826199a0531",
   "covered_dates": [
-    "2026-10-25",
     "2026-10-26",
     "2026-10-27",
     "2026-10-28",
     "2026-10-29",
     "2026-10-30",
     "2026-10-31",
-    "2026-11-01"
+    "2026-11-01",
+    "2026-11-02"
   ],
   "max_entries": 160,
   "files": [
@@ -235,9 +235,7 @@
     "11000222/4.json",
     "11000223/4.json",
     "11000224/4.json",
-    "11000225/4.json",
     "11000226/4.json",
-    "11000227/4.json",
     "11000228/4.json",
     "11000229/4.json",
     "11000245/2.json",
@@ -329,6 +327,19 @@
     "11000515/2.json",
     "11000516/3.json"
   ],
-  "skipped": [],
+  "skipped": [
+    {
+      "stop_id": "11000225",
+      "route": "4",
+      "entries": 166,
+      "reason": "device_capacity_exceeded"
+    },
+    {
+      "stop_id": "11000227",
+      "route": "4",
+      "entries": 166,
+      "reason": "device_capacity_exceeded"
+    }
+  ],
   "note": "Static timetable only. Not live predictions. No weekly repetition."
 }
