@@ -35,8 +35,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ARTIFACT_DAYS: "14"
+          ARTIFACT_ALLOW_PARTIAL: "true"
           ARTIFACT_OUTPUT_DIR: data/artifacts
         run: python analysis/download_recent_artifacts.py
+
+      - name: Report input archive coverage
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path("data/artifacts/download_summary.json").read_text())
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as summary:
+              summary.write("### Collector archive coverage\n\n")
+              summary.write(f"Data files: {report['data_files']}; unavailable archives: {len(report['skipped_artifacts'])}.\n\n")
+              if report["partial"]:
+                  summary.write("**Partial input:** unavailable archives can create apparent collection gaps and reduce timetable evidence. Do not attribute these gaps to the provider/collector without checking the download report.\n\n")
+              summary.write("The downloadable download_summary.json records all skipped archives.\n")
+          PY
 
       - name: Infer provisional schedule
         run: >-
@@ -50,6 +65,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: derived-schedule-${{ github.run_id }}
-          path: data/derived_schedule/*
+          path: |
+            data/derived_schedule/*
+            data/artifacts/download_summary.json
           retention-days: 90
           if-no-files-found: error

@@ -6,6 +6,7 @@ on:
     paths:
       - "collector/collect_rideguide.py"
       - "collector/check_rideguide_health.py"
+      - "tests/test_rideguide_health.py"
       - "requirements.txt"
       - ".github/workflows/collect.yml"
   schedule:
@@ -16,6 +17,9 @@ permissions:
 
 jobs:
   collect:
+    # Branch pushes are covered by the fast dedicated health-test workflow.
+    # Avoid starting a ten-minute provider capture for each PR commit.
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -32,6 +36,15 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Retrieve date-specific CityLink service windows
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin +refs/heads/feed-data:refs/remotes/origin/feed-data
+          mkdir -p data/run
+          git show "origin/feed-data:citylink/metadata.json" > data/run/citylink-service-metadata.json
+          echo "CityLink service calendar commit: $(git rev-parse origin/feed-data)"
+
       - name: Collect Ride Guide GTFS-Realtime
         env:
           RUN_SECONDS: "600"
@@ -43,6 +56,7 @@ jobs:
           python collector/check_rideguide_health.py
           --input data/run
           --timezone Pacific/Auckland
+          --service-windows-json data/run/citylink-service-metadata.json
           --min-trip-updates 1
           --min-routes 1
           --warn-min-vehicles 1
@@ -62,5 +76,6 @@ jobs:
           path: |
             data/run/*.jsonl.gz
             data/run/health_summary.json
+            data/run/citylink-service-metadata.json
           retention-days: 90
           if-no-files-found: error

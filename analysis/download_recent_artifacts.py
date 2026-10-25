@@ -11,6 +11,8 @@ REPOSITORY = os.environ.get("GITHUB_REPOSITORY")
 TOKEN = os.environ.get("GITHUB_TOKEN")
 DAYS = int(os.environ.get("ARTIFACT_DAYS", "14"))
 OUTPUT_DIR = Path(os.environ.get("ARTIFACT_OUTPUT_DIR", "data/artifacts"))
+MAX_ARTIFACTS = int(os.environ.get("ARTIFACT_MAX_COUNT", "0"))
+ALLOW_PARTIAL = os.environ.get("ARTIFACT_ALLOW_PARTIAL", "false").lower() == "true"
 
 
 def github_headers():
@@ -71,7 +73,8 @@ def list_recent_artifacts():
 
         page += 1
 
-    return selected
+    selected.sort(key=lambda artifact: parse_github_time(artifact["created_at"]), reverse=True)
+    return selected[:MAX_ARTIFACTS] if MAX_ARTIFACTS > 0 else selected
 
 
 def download_artifact(artifact):
@@ -98,17 +101,40 @@ def main():
     print(f"Found {len(artifacts)} collector artifacts from the last {DAYS} days.")
 
     downloaded = 0
+    skipped = []
     for artifact in artifacts:
         target = OUTPUT_DIR / str(artifact["id"])
         if target.exists() and any(target.rglob("*.jsonl.gz")):
             continue
 
-        download_artifact(artifact)
+        try:
+            download_artifact(artifact)
+        except requests.HTTPError as error:
+            status = error.response.status_code if error.response is not None else None
+            if not ALLOW_PARTIAL or status not in (404, 410, 429, 500, 502, 503, 504):
+                raise
+            skipped.append({"id": artifact["id"], "name": artifact["name"], "status": status})
+            # Avoid logging HTTPError strings containing signed storage URLs.
+            print(f"::warning::Collector artifact {artifact['id']} unavailable (HTTP {status}); comparison coverage is partial.")
+            continue
         downloaded += 1
         print(f"Downloaded {artifact['name']} ({artifact['id']})")
 
     files = list(OUTPUT_DIR.rglob("*.jsonl.gz"))
     print(f"Downloaded {downloaded} new artifacts; {len(files)} data files available.")
+    import json
+    report = {
+        "days": DAYS,
+        "max_artifacts": MAX_ARTIFACTS,
+        "selected_artifacts": len(artifacts),
+        "downloaded_artifacts": downloaded,
+        "data_files": len(files),
+        "skipped_artifacts": skipped,
+        "partial": bool(skipped),
+    }
+    (OUTPUT_DIR / "download_summary.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+    if ALLOW_PARTIAL and not files:
+        raise RuntimeError("No collector data available; comparison cannot run.")
 
 
 if __name__ == "__main__":

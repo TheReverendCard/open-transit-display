@@ -1,0 +1,142 @@
+name: Monitor CityLink realtime scheduling (metadata only)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/monitor_citylink_realtime.yml'
+  workflow_dispatch:
+  schedule:
+    # ~5-minute sampling, staggered away from the top of the hour.
+    # GitHub may delay or skip triggers. Logs show actual starts, not guaranteed slots.
+    - cron: '2-59/5 * * * *'
+
+# This workflow NEVER writes to branches, artifacts, or a public feed.
+# It requires no provider redistribution permission: no protobuf or vehicle
+# positions are persisted beyond the ephemeral GitHub runner.
+permissions:
+  contents: read
+
+concurrency:
+  group: citylink-realtime-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TZ: Pacific/Auckland
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Record actual collector start
+        id: started
+        shell: bash
+        run: |
+          echo "job_started_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          echo "run_id=$GITHUB_RUN_ID run_attempt=$GITHUB_RUN_ATTEMPT event=$GITHUB_EVENT_NAME"
+      - name: Download a matched static GTFS + trip-map commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin +refs/heads/feed-data:refs/remotes/origin/feed-data
+          rev="$(git rev-parse origin/feed-data)"
+          mkdir -p data/static
+          git show "$rev:citylink/gtfs.zip" > data/static/gtfs.zip
+          git show "$rev:citylink/trip-map.json" > data/static/trip-map.json
+          echo "STATIC_COMMIT=$rev" >> "$GITHUB_ENV"
+      - name: Detect date-valid CityLink service window
+        id: service
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os, time
+          from collector.service_windows import windows
+          info=windows("data/static/gtfs.zip")
+          now=int(time.time())
+          covered=info["covered_from"]<=now<info["covered_until"]
+          active=covered and any(start<=now<=end for start,end in info["intervals"])
+          with open(os.environ["GITHUB_OUTPUT"],"a") as out:
+              out.write("active="+str(active).lower()+"\n")
+              out.write("covered="+str(covered).lower()+"\n")
+          print("service_window_check="+json.dumps({
+              "timestamp":now, "covered":covered, "active":active,
+              "static_feed_commit":os.environ["STATIC_COMMIT"]
+          },separators=(",",":")))
+          PY
+      - name: Install local protobuf reader
+        if: steps.service.outputs.active == 'true'
+        run: python -m pip install gtfs-realtime-bindings websockets
+      - name: Capture 40 seconds of realtime feed into ephemeral local files
+        if: steps.service.outputs.active == 'true'
+        shell: bash
+        run: |
+          python collector/publish_citylink_gtfsrt_snapshot.py \
+            --gtfs data/static/gtfs.zip \
+            --trip-map data/static/trip-map.json \
+            --static-commit "$STATIC_COMMIT" \
+            --output data/monitor-ephemeral \
+            --stop-id 11000262 --route-id 1106 --route-label 6 \
+            --collect-seconds 40
+      - name: Verify protobuf snapshot locally and log aggregate-only metrics
+        if: steps.service.outputs.active == 'true'
+        env:
+          JOB_STARTED_AT_UTC: ${{ steps.started.outputs.job_started_at_utc }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib, json, os, time
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from google.transit import gtfs_realtime_pb2 as pb
+          root=Path("data/monitor-ephemeral/citylink")
+          manifest=json.loads((root/"manifest.json").read_text())
+          assert manifest["static_feed_commit"]==os.environ["STATIC_COMMIT"]
+          counts={}
+          for kind in ("tripupdates","vehiclepositions","alerts"):
+              blob=(root/(kind+".pb")).read_bytes()
+              feed=pb.FeedMessage()
+              feed.ParseFromString(blob)
+              assert feed.header.gtfs_realtime_version=="2.0"
+              assert feed.header.incrementality==pb.FeedHeader.FULL_DATASET
+              assert hashlib.sha256(blob).hexdigest()==manifest["feeds"][kind]["sha256"]
+              counts[kind]=len(feed.entity)
+              assert counts[kind]==manifest["feeds"][kind]["entities"]
+          data={
+              "schema":"otd-citylink-monitor-v1",
+              "run_id":os.environ["GITHUB_RUN_ID"],
+              "run_attempt":int(os.environ["GITHUB_RUN_ATTEMPT"]),
+              "job_started_at_utc":os.environ["JOB_STARTED_AT_UTC"],
+              "generated_at_utc":manifest["generated_at_utc"],
+              "validation_finished_at_utc":datetime.now(timezone.utc).isoformat(timespec="seconds"),
+              "static_feed_commit":manifest["static_feed_commit"],
+              "counts":counts,
+              "source_age_seconds":{k:v["source_age_seconds_at_generation"]
+                                    for k,v in manifest["feeds"].items()},
+              "oldest_entity_age_seconds":{k:v["oldest_entity_age_seconds_at_generation"]
+                                           for k,v in manifest["feeds"].items()},
+              "has_museum_stop_json":(root/"stops/11000262/6.json").is_file(),
+          }
+          # One parseable record per run. No vehicle IDs, GPS, raw protobuf
+          # or individual arrival estimates leave the ephemeral runner.
+          print("CITYLINK_MONITOR="+json.dumps(data,sort_keys=True,separators=(",",":")))
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a") as summary:
+              summary.write("## CityLink realtime monitor (no publication)\n\n")
+              summary.write(f"Run {data['run_id']} | snapshot {data['generated_at_utc']}\n\n")
+              summary.write("| Feed | Entities | Source age (s) | Oldest entity age (s) |\n")
+              summary.write("|---|---:|---:|---:|\n")
+              for name in counts:
+                  summary.write(f"| {name} | {counts[name]} | {data['source_age_seconds'][name]} | {data['oldest_entity_age_seconds'][name]} |\n")
+              summary.write("\nThese are sampled entity counts, **not per-day service availability**. No data published.\n")
+          PY
+      - name: Log excluded / missing schedule coverage
+        if: steps.service.outputs.active != 'true'
+        shell: bash
+        run: |
+          echo "CITYLINK_MONITOR_WINDOW run_id=$GITHUB_RUN_ID static_commit=$STATIC_COMMIT active=false covered=${{ steps.service.outputs.covered }}"
+          echo "No provider connection or public publication for this run." >> "$GITHUB_STEP_SUMMARY"
