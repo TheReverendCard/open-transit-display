@@ -17,6 +17,9 @@ permissions:
 
 jobs:
   collect:
+    # Branch pushes are covered by the fast dedicated health-test workflow.
+    # Avoid starting a ten-minute provider capture for each PR commit.
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
