@@ -53,6 +53,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--saturday-start", default="06:40")
     parser.add_argument("--saturday-end", default="17:30")
     parser.add_argument("--sunday-service", action="store_true")
+    parser.add_argument(
+        "--service-windows-json", type=Path,
+        help="Published CityLink citylink/metadata.json from feed-data. Overrides weekly"
+             " defaults with date-specific GTFS service windows and holiday exceptions.",
+    )
 
     parser.add_argument("--summary-json", default="data/run/health_summary.json")
     return parser.parse_args()
@@ -96,7 +101,36 @@ def parse_hhmm(value: str) -> time:
         raise ValueError(f"invalid HH:MM value: {value!r}") from exc
 
 
-def service_expected(local_dt: datetime, args: argparse.Namespace) -> bool:
+def load_service_windows(path: Path) -> dict:
+    """Read the derived GTFS service windows, fail closed on malformed metadata."""
+    document = json.loads(path.read_text(encoding="utf-8"))
+    info = document.get("service_windows", document)
+    if not isinstance(info, dict):
+        raise ValueError("missing service_windows in published timetable metadata")
+    coverage_start = info.get("covered_from")
+    coverage_end = info.get("covered_until")
+    intervals = info.get("intervals")
+    if (not isinstance(coverage_start, int) or not isinstance(coverage_end, int)
+            or coverage_end <= coverage_start or not isinstance(intervals, list)):
+        raise ValueError("incomplete or invalid GTFS service-window metadata")
+    for interval in intervals:
+        if (not isinstance(interval, list) or len(interval) != 2
+                or any(not isinstance(point, int) for point in interval)
+                or interval[0] >= interval[1]):
+            raise ValueError("invalid interval in GTFS service-window metadata")
+    return info
+
+
+def service_expected(local_dt: datetime, args: argparse.Namespace,
+                     service_windows: dict | None = None) -> bool | None:
+    if service_windows is not None:
+        instant = int(local_dt.timestamp())
+        if not service_windows["covered_from"] <= instant < service_windows["covered_until"]:
+            # An expired static feed must never be interpreted as a valid
+            # 'no service' day. Report an explicit coverage failure instead.
+            return None
+        return any(start <= instant <= end for start, end in service_windows["intervals"])
+
     weekday = local_dt.weekday()  # Monday = 0, Sunday = 6
     local_t = local_dt.time().replace(second=0, microsecond=0)
 
@@ -172,7 +206,9 @@ def main() -> int:
 
     reference_ts = newest_received_timestamp if newest_received_timestamp is not None else now_ts
     local_dt = datetime.fromtimestamp(reference_ts, ZoneInfo(args.timezone))
-    expected_service = service_expected(local_dt, args)
+    windows = load_service_windows(args.service_windows_json) if args.service_windows_json else None
+    expected_service = service_expected(local_dt, args, windows)
+    calendar_source = "dated_gtfs" if windows is not None else "weekly_fallback"
 
     failures: list[str] = []
     warnings: list[str] = []
@@ -203,7 +239,12 @@ def main() -> int:
     has_vehicle_stream = vehicle_rows >= args.warn_min_vehicles and len(routes) >= args.min_routes
     has_prediction_stream = trip_update_rows >= args.min_trip_updates and len(routes) >= args.min_routes
 
-    if expected_service:
+    if expected_service is None:
+        failures.append(
+            "published CityLink static service calendar does not cover check time; "
+            "refresh feed-data before interpreting realtime stream activity"
+        )
+    elif expected_service:
         # A complete absence of useful in-service activity is a real failure.
         if not has_vehicle_stream and not has_prediction_stream:
             failures.append(
@@ -228,6 +269,8 @@ def main() -> int:
             )
     else:
         warnings.append(
+            "outside date-valid CityLink service window; active vehicle/trip counts are informational only"
+            if windows is not None else
             "outside expected regular CityLink service hours; active vehicle/trip counts are informational only"
         )
 
@@ -249,6 +292,8 @@ def main() -> int:
         "healthy": health_status != "unhealthy",
         "status": health_status,
         "service_expected": expected_service,
+        "service_calendar_source": calendar_source,
+        "service_calendar_covered": expected_service is not None if windows is not None else None,
         "check_local_time": local_dt.isoformat(timespec="seconds"),
         "files_checked": len(files),
         "total_rows": total_rows,
@@ -296,7 +341,10 @@ def main() -> int:
             handle.write("## Whangārei realtime feed health\n\n")
             handle.write(f"**Status:** {health_status.upper()}\n\n")
             handle.write(f"- Check time: {local_dt.isoformat(timespec='minutes')}\n")
-            handle.write(f"- Regular service expected: {'yes' if expected_service else 'no'}\n")
+            handle.write(
+                f"- Service expected: {('unknown' if expected_service is None else 'yes' if expected_service else 'no')} "
+                f"({calendar_source})\n"
+            )
             handle.write(
                 f"- Vehicle rows: {vehicle_rows}\n"
                 f"- Trip updates: {trip_update_rows}\n"
