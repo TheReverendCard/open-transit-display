@@ -1,6 +1,6 @@
 {
   "provider": "auckland",
-  "fetched_at": "2026-10-30T18:46:10.097292+00:00",
+  "fetched_at": "2026-10-31T17:52:21.280024+00:00",
   "sha256": "7b66e11ab1503ceb3a4987f675d16c5ac1084e91a6fb79d08625c58e7e40e477",
   "bytes": 24608877,
   "tables": {
@@ -16,13 +16,13 @@
   "attribution": "Auckland Transport",
   "service_windows": {
     "timezone": "Pacific/Auckland",
-    "covered_from": 1793358000,
-    "covered_until": 1794222000,
+    "covered_from": 1793444400,
+    "covered_until": 1794308400,
     "lead_seconds": 900,
     "late_grace_seconds": 1800,
     "intervals": [
       [
-        1793286900,
+        1793373300,
         1793537760
       ],
       [
@@ -48,6 +48,10 @@
       [
         1794150900,
         1794228960
+      ],
+      [
+        1794237300,
+        1794315360
       ]
     ]
   },
