@@ -1,0 +1,19 @@
+{
+  "source_url": "https://github.com/ArtifexSoftware/urw-base35-fonts",
+  "fonts": {
+    "regular": {
+      "file": "source/display-sans-regular.otf.b64",
+      "sha256": "7c25be4d78155523080ab85b10277150657ff7dabbcad7037bdd536c9b6d0d08",
+      "family": "Nimbus Sans",
+      "style": "regular",
+      "license": "AGPL-3.0-only with upstream PostScript/PDF font exception"
+    },
+    "bold": {
+      "file": "source/display-sans-bold.otf.b64",
+      "sha256": "7f33328e6b4d4cd21b45fa625791928c9407dc702db6780e56b09ca9a3ecaa67",
+      "family": "Nimbus Sans",
+      "style": "bold",
+      "license": "AGPL-3.0-only with upstream PostScript/PDF font exception"
+    }
+  }
+}

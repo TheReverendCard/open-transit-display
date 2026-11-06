@@ -12,6 +12,7 @@ on:
       - 'collector/fetch_public_feeds.py'
       - 'collector/service_windows.py'
       - 'collector/build_derived_gtfs.py'
+      - 'collector/build_stop_snapshots.py'
       - '.github/workflows/publish_feed_snapshots.yml'
 permissions:
   contents: write
@@ -53,6 +54,9 @@ jobs:
           fi
           python collector/fetch_public_feeds.py
           python collector/prepare_feed_publication.py
+          if [ -f data/publication/citylink/gtfs.zip ]; then
+            python collector/build_stop_snapshots.py
+          fi
           python collector/seal_site_credentials.py
       - name: Publish data branch without plaintext credentials
         run: |
@@ -64,6 +68,9 @@ jobs:
             git worktree add --detach "$publication" HEAD
             git -C "$publication" checkout --orphan feed-data
             git -C "$publication" rm -rf .
+          fi
+          if [ -f data/publication/citylink/stops/index.json ]; then
+            rm -rf "$publication/citylink/stops"
           fi
           cp -R data/publication/. "$publication/"
           git -C "$publication" config user.name 'github-actions[bot]'

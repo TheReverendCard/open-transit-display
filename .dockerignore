@@ -1,0 +1,10 @@
+# Keep firmware, private local data and other repo content out of the image.
+**
+!Dockerfile
+!cloudrun/
+!cloudrun/requirements.txt
+!cloudrun/citylink_monitor.py
+!collector/
+!collector/citylink_gtfsrt_bridge.py
+!collector/publish_citylink_gtfsrt_snapshot.py
+!collector/service_windows.py

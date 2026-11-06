@@ -44,6 +44,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ARTIFACT_DAYS: "14"
+          # Retain historical coverage; report unavailable archives instead of
+          # aborting this provisional diagnostic after usable downloads.
+          ARTIFACT_ALLOW_PARTIAL: "true"
           ARTIFACT_OUTPUT_DIR: data/artifacts
         run: python analysis/download_recent_artifacts.py
 
@@ -70,5 +73,6 @@ jobs:
             data/published_timetables/*
             data/derived_schedule/*
             data/timetable_matches/*
+            data/artifacts/download_summary.json
           retention-days: 90
           if-no-files-found: error
