@@ -13,3 +13,7 @@ Initial field test criteria follow. With sign USB disconnected, look for five co
 ## First-hour field result, 13 November 2026 NZDT
 
 Passed the short-term reboot regression check. The gateway received all 28 ACKs for N614–N641, including 25 consecutive minute transmissions N616–N640. Boot ID 0B336F4A held across the initial idle heartbeat, the 11:55:08 STALE request and its successful reply, active service and the 12:34 idle heartbeat. At 12:34:10 the sign reported 3,653 seconds uptime, 3,349 seconds asleep, 28 GPIO wakes, 1,661 timer wakes and zero sleep errors. The gateway timeout count stayed at 36 throughout. Overnight stability and endurance remain open.
+
+## Next-morning observation, 14 November 2026 NZDT
+
+The operator reported that the sign appeared stable and was behaving properly the following morning. Together with the first-hour receiver measurements, this supports using v0.8.4e as the working Museum firmware baseline. Overnight boot-ID continuity and the first-service ACK were not independently verified from a receiver transcript. Battery endurance on this build remains unmeasured.
