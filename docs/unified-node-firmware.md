@@ -1,5 +1,13 @@
 # Unified node firmware
 
+## Current field status, 14 November 2026, 17:37 NZDT
+
+The owner confirmed the Windows scheduled gateway starts successfully after correcting Program/script to the full Python executable.  The active application is 0.8.5.1 under Documents/OTD, supervised by task-repair-3, using COM5.  Receiver firmware v0.8.5 reports radio_ready=1.  The one-member Museum coordinator preview fits with no unreachable stops; mesh_tx remains 0.  The sign firmware baseline remains v0.8.4e.
+
+At this start the loaded timetable's next Museum departure was Monday 16 November at 07:15:07 NZDT, so the gateway entered its configured quiet period.  ACK 0/0 here is expected because no numbered radio packet had been sent in the new session.  The earlier 17:17:49 exchange already confirmed Museum radio acknowledgement.  A new sign ACK and continuous unattended operation are subsequent field evidence, not prerequisites for recognising this successful host/receiver startup.
+
+The scheduled-task launch fault is resolved in the owner's reported test.  Automatic launch following a PC reboot remains untested.  Earlier failure/repair sections below are historical; do not treat their pending startup status as current.
+
 ## Direction agreed 14 November 2026
 
 Develop one firmware for supported node configurations.  Display, gateway and relay are duties that a device can combine or suspend at runtime.  The standalone gateway timetable trial proposed in issue #10 becomes the first gateway test of this shared firmware.  This document records the design direction.  The adaptive duties and policies below are proposed work.  The Museum sign running v0.8.4e is the field baseline.
@@ -219,6 +227,18 @@ The arguments had changed to the correct Python launcher invocation, but Program
 The query also showed No Start On Batteries.  Perform the verification with the PC connected to mains; this record does not authorize changing that power policy.  A startup trigger need not show a dated Next Run Time in this listing.
 
 The read-back establishes the invalid saved command, not a completed repair or the precise mechanism producing the fail-fast status.  Next evidence remains the corrected saved executable, a Running task and fresh supervisor startup/ACK output.  No on-PC settings were changed from this session.
+
+## Corrected executable and successful scheduled launch, 14 November 2026
+
+The owner reported "That fixed it" after replacing the saved Program/script directory with C:\Users\revje\AppData\Local\Programs\Python\Python312\python.exe.  Fresh output begins at 17:37:04 NZDT with the active 0.8.5.1 gateway on COM5 and child PID 14236.  The gateway loaded the Museum stop, route 6, 94 static departures and 82 mapped source trips, subscribed to Ride Guide GTFS-RT, and received OTD_BRIDGE version=0.8.5 preview=1 radio_ready=1 mesh_tx=0 at 17:37:06.
+
+Schedule revision 28D4BEEE covered 12-20 November.  The loaded next available Museum departure was 16 November at 07:15:07+13:00.  GATEWAY QUIET transition=enter and ACK 0/0 are consistent with this off-service state; no extra transmission or firmware update is required just to make the counter nonzero.
+
+The USB coordinator preview completed for museum-route6 with cycle_s=60, one 3000-ms frame, one member, parent=gateway, fits=1, senders=1, unreachable=0 and worst_delivery_ms=63000.  These are preview-plan outputs.  They do not demonstrate on-air mesh forwarding, which remains disabled (mesh_tx=0).
+
+The outer log timestamps and inner radio timestamps both read 17:37:06 in the new startup excerpt.  The earlier delayed-output symptom is not present in this sample, although its cause was not established.  No gateway or sign reset-loop evidence is present in this excerpt.
+
+Status:  corrected task launch and host-to-receiver startup confirmed by the owner.  The runtime binary is the known Python executable; arguments and Documents/OTD working directory remain as previously verified.  Reboot-triggered automatic startup and prolonged unattended operation remain to be checked during ordinary use.  This successful outcome requires no additional package installation.  No files on the owner's PC or device firmware were changed from the development host for this follow-up.
 
 ## Delivery sequence and evidence
 
