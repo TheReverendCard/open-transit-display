@@ -156,6 +156,28 @@ The guard currently matches gateway script names anywhere in command lines.  It 
 
 Pending evidence:  exact commands and parent relationships.  Use that to scope cleanup and improve process reporting.  No additional package change or process termination was made during this diagnostic follow-up; repair v2 remains the delivered package.  An output-only process listing is the next on-PC action.
 
+## Verified surviving OTD processes and repair v3, 14 November 2026
+
+The owner supplied the actual process inventory.  All seven matches belong to the Documents/OTD installation:
+
+| Launcher start, local time | py.exe wrapper | Python supervisor | Observed child |
+| --- | --- | --- | --- |
+| 15:59:27 | 45620 | 29072 | None in the supplied snapshot |
+| 15:59:52 | 29660 | 22724 | 19976, started 16:21:39 |
+| 16:00:28 | 42388 | 6024 | None in the supplied snapshot |
+
+Each wrapper/supervisor command runs `C:\\Users\\revje\\Documents\\OTD\\run_gateway.py`.  Child 19976 runs the active 0.8.5.1 Museum gateway with COM5, shared data/config paths, route 6, stop 11000262 and live mode.  The outer parents of the three wrapper processes were absent from the returned snapshot.  This establishes three surviving supervisor chains alongside the failed task launches.  It could explain the owner's observation of changing sign data while Task Scheduler reported failure, but command lines alone do not prove COM ownership or current successful radio delivery.  The cause of `0xC0000602` remains unproven.
+
+Repair v3, delivered in the same Documents setup ZIP, adds `-StopExistingGateway`.  After the existing task is backed up, disabled and stopped, this opt-in cleanup selects only full-path py.exe/python.exe/pythonw.exe invocations with `-u` and the exact script argument for the selected root's `run_gateway.py` or active version's `gateway/museum_gateway_realtime.py`.  It stops supervisors before their children.  Each stop uses a retained process handle and fresh creation-time/command checks; the pasted PID numbers are not used for termination.  No broad Python kill or recursive parent-tree kill is used.  Other unmatched gateway-script processes still block repair and are printed for review.  The generic permission advice now appears only for an access-denied failure.
+
+The supervisor is now revision `task-repair-3`.  It holds an OS lock at `shared/gateway.lock` throughout normal operation and retry delays.  A second upgraded supervisor for the same root logs `DUPLICATE START BLOCKED` and exits with code 2 before starting a child.  CHECK mode remains available.  The OS releases the lock after normal or abrupt supervisor exit; the persistent lock file must not be deleted to bypass a live lock.  The guard does not control older supervisors or gateway scripts started directly, nor does it itself terminate a child left behind by an abruptly killed supervisor.
+
+Owner action:  replace the extracted setup package, use the existing elevated PowerShell window, then run `Repair_Gateway_Task.ps1 -Root "C:\\Users\\revje\\Documents\\OTD" -StopExistingGateway`.  The script should identify itself as TASK REPAIR v3, log each selected stop, verify the saved Python task action, and check for new scheduled RUN output.  Field acceptance still requires a fresh Museum ACK and continued stable operation.
+
+Seventeen local tests passed.  New coverage verifies command selection for the observed launcher/child forms, quoted paths, exclusion of bat/other-root scripts and script names mentioned as data; actual concurrent supervisor exclusion and subsequent restart; separate roots; and lock release after abrupt exit.  The regex checks exercise shared matching semantics, not native Windows process termination.  Native elevated PowerShell cleanup and the Windows msvcrt lock branch remain pending on-PC validation.  The seventeen versioned gateway payload files, including receiver firmware source, are unchanged.  Sign firmware is unchanged.
+
+Updated package SHA-256:  `2cb951b034351cc7ef0bb2b06bf305f8d54e3b398e18d7f3beff48055368a9a4`.  The task has not yet been confirmed repaired; no processes on the owner's PC were stopped from the development host.
+
 ## Delivery sequence and evidence
 
 1. **Receiver first.**  With the current PC gateway supplying data, add a capability report and a coordinator preview that logs group members, selected upstream stops, forwarders, radio windows and the reasons for each selection.  Replay an hourly Museum service and a busier overlapping service.  Verify that the plan covers every subscribed stop and stays within the chosen live-data freshness and radio airtime budgets.  The preview can be checked alongside the working sign before enabling mesh transmissions.
