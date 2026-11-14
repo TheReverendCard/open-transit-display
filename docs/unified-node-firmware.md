@@ -129,6 +129,25 @@ All twelve local Python tests passed, including five new startup checks for succ
 
 Package SHA-256:  `0324d9b747ae8f73e1f64faa1670e40f2a4d81ac1cc75a3002368f589eb3b19d`.  The same Documents setup download now contains this repair.  Next evidence needed:  repair output, a fresh Museum ACK and sustained scheduled operation.
 
+## Windows permission failure and repair v2, 14 November 2026
+
+The owner ran repair v1 at 16:35 NZDT.  Logging launchers were installed with a dated backup, Python was pinned to the user's Python 3.12 executable, and the installed CHECK mode confirmed imports, timezone, group configuration and log writing on Windows.  These local startup checks are now field-confirmed; radio and network access were deliberately not exercised by CHECK.
+
+`Set-ScheduledTask` and `Enable-ScheduledTask` returned Access is denied, HRESULT `0x80070005`.  The repair incorrectly continued after those errors and claimed that the direct Python action was installed.  That was a repair-script defect; the claim must not be treated as evidence of a saved task change.  At 16:35:37 the task was Ready, its most recent run had again returned `0xC0000602`, and no fresh scheduled launcher output was confirmed.  Permissions blocked the attempted repair; the original fail-fast cause is still unverified.
+
+The same Documents setup ZIP now contains **Repair v2**.  Changes are limited to `Repair_Gateway_Task.ps1` and its README:
+
+* Require an elevated PowerShell window for this one-time repair, using `#Requires -RunAsAdministrator`.  The existing task account and RunLevel are not changed.
+* Add explicit `-ErrorAction Stop` to every scheduler operation and the process inventory read, so a rejected command enters failure handling.
+* Read back the disabled/enabled state and saved Execute, Arguments and WorkingDirectory.  Report a saved Python action only after the values match.  Start only after action and enabled-state verification.
+* Track whether the action was verified and report that accurately in failures.  Verify enabled-state restoration in cleanup and report any failure to restore it.
+
+The owner's extracted path is `C:\\Users\\revje\\Documents\\OTD_Documents_Setup\\OTD_Documents_Setup`.  Replace that extracted package with the updated ZIP, open Windows PowerShell with Run as administrator, and invoke the repair with explicit `-Root "C:\\Users\\revje\\Documents\\OTD"`.  If permissions are still denied in the elevated shell, stop and inspect task access; do not assume an update succeeded.
+
+Only the two named files changed relative to repair v1.  The Python supervisor, gateway payload and MCU firmware are unchanged.  Native execution of revised repair v2 is still pending on the owner's Windows PC.  The earlier twelve Python tests do not validate Windows scheduler permissions or PowerShell error handling.  The new package SHA-256 is `1ed6aa6acf499fe6935f5a4f843326127b186a1a1e72887cb60d61b877d47366`.
+
+Next evidence:  saved-action verification from the elevated run, fresh scheduled RUN output and a new Museum ACK.  Microsoft documents [command-level ErrorAction](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_commonparameters?view=powershell-5.1) and [Task Scheduler access-denied troubleshooting](https://learn.microsoft.com/en-us/troubleshoot/windows-server/system-management-components/troubleshooting-task-scheduler-access-denied-error).
+
 ## Delivery sequence and evidence
 
 1. **Receiver first.**  With the current PC gateway supplying data, add a capability report and a coordinator preview that logs group members, selected upstream stops, forwarders, radio windows and the reasons for each selection.  Replay an hourly Museum service and a busier overlapping service.  Verify that the plan covers every subscribed stop and stays within the chosen live-data freshness and radio airtime budgets.  The preview can be checked alongside the working sign before enabling mesh transmissions.
