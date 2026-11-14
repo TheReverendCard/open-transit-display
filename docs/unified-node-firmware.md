@@ -194,6 +194,18 @@ Only the repair PowerShell file and README changed from v3.  The installed Pytho
 
 Next evidence needed:  successful credential-backed save with the correct executable, followed by scheduled RUN and fresh Museum ACK.  Do not mark the scheduler repaired until that evidence arrives.
 
+## First confirmed radio exchange after cleanup, 14 November 2026
+
+The owner supplied console-log output containing a successful Museum exchange:  at the gateway's inner timestamp 17:17:48 NZDT it received a STALE request for stop 11000262, route 6 and nonce 0B336F4A, then submitted N1.  At 17:17:49 the receiver reported TX status 0 and matching OTDA2 acknowledgement for session 509817070/N1.  RTT was 1563 ms, sign RX=1, gap=0 and battery 3.996 V.  The counters reached 1/1 acknowledged, zero timed out and zero pending.  This confirms a working host/USB/LoRa/sign exchange in that session.  It does not identify whether the session was started manually or by Task Scheduler.
+
+The log ends at 17:20:48 with "Gateway stopped by keyboard interrupt."  That is an intentional-interrupt exit path in the supervisor, not evidence of a sign reset or the earlier fail-fast exception.  If this was the requested temporary foreground run, stopping it before the scheduled run is expected.  No later scheduled RUN marker, task-state read-back or fresh ACK after this stop has yet been supplied.
+
+Several older child-output lines were stamped 17:20:36 by the supervisor, including the 17:17:49 ACK.  Source inspection confirms that the outer timestamp is assigned when the supervisor processes child stdout, whereas the inner timestamp originates in the gateway radio-reading thread.  The displayed gap is 2 minutes 47 seconds.  Delayed log processing is a concern to distinguish from radio RTT; its cause is unconfirmed.  The child is already launched with -u and these radio/ACK prints explicitly flush, so simply adding unbuffered output again is not an evidence-based fix.
+
+The repeated 0/0 summaries mean this session had not yet submitted a numbered packet at those summary points.  They are not ACK losses; quiet-service policy can legitimately suppress routine sends, while STALE requests still trigger a response.
+
+No package or firmware changes were made for this observation.  The next on-PC check is the saved task action, current task state/last run, and fresh log output after 17:20:48.  Scheduled startup and ongoing unattended operation remain pending confirmation.
+
 ## Delivery sequence and evidence
 
 1. **Receiver first.**  With the current PC gateway supplying data, add a capability report and a coordinator preview that logs group members, selected upstream stops, forwarders, radio windows and the reasons for each selection.  Replay an hourly Museum service and a busier overlapping service.  Verify that the plan covers every subscribed stop and stays within the chosen live-data freshness and radio airtime budgets.  The preview can be checked alongside the working sign before enabling mesh transmissions.
