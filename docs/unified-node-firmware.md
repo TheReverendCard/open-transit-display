@@ -94,6 +94,12 @@ The owner-local package `OTD_Documents_Setup.zip` (SHA-256 `0304f464b63800d0de37
 Four migration tests and ten gateway compatibility tests passed, including shared data paths through the normal PC entry point.  Windows PowerShell/Task Scheduler and Windows file locking require an on-PC check.  The package has been prepared for the user; no Windows filesystem migration or scheduled-task change has been performed from this session.  Future releases should supply the shared-path options accepted by the permanent launcher and document any configuration migration.
 
 
+## Task Scheduler follow-up, 14 November 2026
+
+The owner reported that the Bus Sign Monitor task showed Running, enabled and allowed on demand, with a last-result value of `0xC0000602`.  Its action's Program field was `C:\Windows\System32\WindowsPowerShell\v1.0`, a directory.  Correct the action to `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`, retain the arguments pointing to `Documents\OTD\Run_Gateway.ps1`, and set the working directory to the installation root.  A later successful gateway ACK is still needed to verify the task launch.  The reported result is a fail-fast exception status and does not identify its originating process.
+
+For an owner-visible console at sign-in, use the owner's interactive account, Run only when user is logged on, and an At log on trigger.  Background operation before sign-in uses a different task logon context.  Record the actual selected mode when the owner confirms the correction.  See [Microsoft logon modes](https://learn.microsoft.com/en-us/windows/win32/api/taskschd/ne-taskschd-task_logon_type) and [NTSTATUS values](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55).
+
 ## Delivery sequence and evidence
 
 1. **Receiver first.**  With the current PC gateway supplying data, add a capability report and a coordinator preview that logs group members, selected upstream stops, forwarders, radio windows and the reasons for each selection.  Replay an hourly Museum service and a busier overlapping service.  Verify that the plan covers every subscribed stop and stays within the chosen live-data freshness and radio airtime budgets.  The preview can be checked alongside the working sign before enabling mesh transmissions.
