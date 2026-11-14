@@ -83,6 +83,17 @@ The gateway transmitted N1 in session 382198413 with radio status 0.  Museum sto
 
 This establishes successful installation, USB preview execution and initial radio exchange between the candidate gateway and the current sign.  Continued ACK reception, live arrival transition, physical screen correctness and quiet-period/first-service recovery remain field acceptance checks.  With the next scheduled departure at 16:15:07, the current 20-minute policy should start regular arrival updates around 15:55 NZDT, subject to live prediction and the running loop cadence.
 
+## Windows installation layout, 14 November 2026
+
+Use the owner's Documents/OTD as the permanent installation root for gateway and sign releases.  `Run_Gateway.ps1` and `run_gateway.py` provide the permanent Task Scheduler entry point.  `active-gateway.json` selects a version under `versions/gateway/<version>`.  Future sign packages belong under `versions/sign/<version>`.  Shared COM-port and group configuration lives under `shared/config`, feed caches under `shared/cache`, and histories and diagnostics under `shared/logs`.
+
+The owner-local package `OTD_Documents_Setup.zip` (SHA-256 `0304f464b63800d0de3775e748d7b946d8bbcf1721e3993014ca0e9eec91fd3a`) installs gateway application 0.8.5.1.  It takes the current Downloads installation path supplied by the owner, copies it to a dated local backup, imports known logs and caches into shared storage on first install, and publishes the active selection after installation.  Repeat installations retain shared settings and data.  The bundled receiver source is byte-identical to v0.8.5.  The initial port is COM5 and the application uses the existing Museum stop/route and live-data arguments.
+
+`shared/credentials` reserves a common location for protected provisioning credentials in future work.  The current public-feed PC gateway has no credential-file consumer, and device Wi-Fi provisioning is still on-device.  The installer copies private files already present in the old installation into its local backup.  Credential extraction, encrypted credential storage and automated device provisioning are pending.
+
+Four migration tests and ten gateway compatibility tests passed, including shared data paths through the normal PC entry point.  Windows PowerShell/Task Scheduler and Windows file locking require an on-PC check.  The package has been prepared for the user; no Windows filesystem migration or scheduled-task change has been performed from this session.  Future releases should supply the shared-path options accepted by the permanent launcher and document any configuration migration.
+
+
 ## Delivery sequence and evidence
 
 1. **Receiver first.**  With the current PC gateway supplying data, add a capability report and a coordinator preview that logs group members, selected upstream stops, forwarders, radio windows and the reasons for each selection.  Replay an hourly Museum service and a busier overlapping service.  Verify that the plan covers every subscribed stop and stays within the chosen live-data freshness and radio airtime budgets.  The preview can be checked alongside the working sign before enabling mesh transmissions.
