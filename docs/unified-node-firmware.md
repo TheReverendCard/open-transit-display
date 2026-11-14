@@ -178,6 +178,22 @@ Seventeen local tests passed.  New coverage verifies command selection for the o
 
 Updated package SHA-256:  `2cb951b034351cc7ef0bb2b06bf305f8d54e3b398e18d7f3beff48055368a9a4`.  The task has not yet been confirmed repaired; no processes on the owner's PC were stopped from the development host.
 
+## Cleanup confirmed; password-logon registration pending, 14 November 2026
+
+The owner ran repair v3 at 16:57:57 NZDT.  The log confirms the task account is `revje` with `Password` logon.  Its Program was still `C:\\Windows\\System32\\WindowsPowerShell\\v1.0`, a directory, while WorkingDirectory was already Documents/OTD.
+
+The scoped cleanup stopped Python supervisors 22724, 29072 and 6024 at 16:58:00-01, then the active gateway child 19976 at 16:58:02.  The broad remaining-process guard passed, so no matching wrappers remained at that check.  The task and previous launchers were backed up.  Supervisor task-repair-3 was installed, and its CHECK mode passed on Windows.  There is now field evidence for scoped cleanup and installed local preflight, but not yet for the Windows singleton under concurrent launches or live operation from the task.
+
+Registration then failed with "The user name or password is incorrect."  The new task action was not verified and no new scheduled start was requested by this run.  The old program path therefore must not be treated as corrected.  Repair v3 called Set-ScheduledTask without credentials despite the existing Password logon mode.  This is a missing credential-handling path in the repair, and the error alone does not establish that the owner's saved password is incorrect.  Microsoft specifies a password at registration for [password-logon tasks](https://learn.microsoft.com/en-us/windows/win32/taskschd/principal-logontype).
+
+Immediate operational path:  run the installed supervisor with the pinned Python 3.12 executable in a temporary foreground PowerShell window to restore live service while finishing registration.  This manual run is not evidence of scheduled recovery.  In an elevated Task Scheduler UI, edit the existing action to the full Python executable, arguments `-u "C:\\Users\\revje\\Documents\\OTD\\run_gateway.py"`, working directory `C:\\Users\\revje\\Documents\\OTD`, retaining account, triggers and logon mode.  Save using the task account's Windows password in the native prompt, not its Hello PIN.  Stop the temporary foreground supervisor with Ctrl+C before selecting Run.  Confirm fresh RUN and RX_ACK output in the independent viewer.
+
+For future scripted repair, the same setup ZIP now contains repair v4.  It detects Password/InteractiveOrPassword logon, requests the existing account's password through a local masked PowerShell prompt before disabling the task or stopping processes, and supplies User/Password to Set-ScheduledTask.  It clears its credential references after registration or failure.  No Windows account credentials are written to OTD logs, backups or configuration; Windows retains the registered task credentials normally.  It does not silently change the principal, elevate the scheduled gateway or switch to interactive-only/SYSTEM execution.
+
+Only the repair PowerShell file and README changed from v3.  The installed Python supervisor remains task-repair-3; gateway payload and firmware are unchanged.  Native Windows credential registration still needs owner validation.  The prior seventeen local tests do not cover this registration path.  Updated ZIP SHA-256:  `1738bd8678d4a79376583794a2c56f8049eaf819bb8aaf6f59cfcf98897e7521`.
+
+Next evidence needed:  successful credential-backed save with the correct executable, followed by scheduled RUN and fresh Museum ACK.  Do not mark the scheduler repaired until that evidence arrives.
+
 ## Delivery sequence and evidence
 
 1. **Receiver first.**  With the current PC gateway supplying data, add a capability report and a coordinator preview that logs group members, selected upstream stops, forwarders, radio windows and the reasons for each selection.  Replay an hourly Museum service and a busier overlapping service.  Verify that the plan covers every subscribed stop and stays within the chosen live-data freshness and radio airtime budgets.  The preview can be checked alongside the working sign before enabling mesh transmissions.
