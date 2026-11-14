@@ -111,6 +111,24 @@ The viewer tails the file and can be opened or closed independently of the gatew
 Three new tests passed for child stdout/stderr capture, Unicode, retry after failure, headless logging, configuration errors and preservation during the patch.  Four migration tests also passed.  The Windows launcher and viewer need the owner's on-PC check.  Updated package SHA-256 is `89acae23b50163e33a91ca6dde87a5b825e6e087740d14689a157092b7953176`.
 
 
+## Scheduled gateway failure and checked repair, 14 November 2026
+
+At 16:23:16 NZDT the owner reported that `\\Bus Sign Monitor` was Ready.  Its last run at 16:21:57 returned `0xC0000602`, and both `shared/logs/gateway-startup.log` and `gateway-console.log` were absent.  This supersedes the earlier assumption that the task might still be running without a window.  Execution of the logging launcher is unconfirmed.  The original action had named the PowerShell directory without powershell.exe; whether that correction or the logging update reached the installed task is unknown.  The fail-fast result does not identify the failing process or establish the underlying cause.
+
+The current `OTD_Documents_Setup.zip` adds `Repair_Gateway_Task.ps1` and supervisor revision `task-repair-1`.  It is a Windows startup repair, with no changes to the gateway application 0.8.5.1 payload, receiver firmware v0.8.5 or sign firmware v0.8.4e.  Extract the complete package and run the repair script in an existing PowerShell window.  The package README gives the commands.  The repair:
+
+* Validates installed files and the recorded Python environment.  New `run_gateway.py --check` checks log writing, imports, timezone and group configuration without opening the serial port or feeds.  Missing dependencies and invalid local configuration fail before task-action replacement.
+* Backs up the task XML, temporarily disables its triggers, stops a current instance and checks for another gateway process.  The logging patch saves prior launchers and retains the selected application, shared settings and historical CSV files.
+* Changes only the action of the existing root `Bus Sign Monitor` task to the verified absolute python.exe path, with `-u "<OTD root>\\run_gateway.py"` and the OTD working directory.  Account, triggers and conditions remain.  It restores enabled status and requests one start.
+* Reports the state and result after 15 seconds, and separately checks bytes appended since that start for a RUN-mode launcher marker.  A fresh launcher marker confirms startup only; fresh ACKs and continuing operation are required for field acceptance.  It does not claim to diagnose the original fail-fast cause.
+* Writes repair progress to `shared/logs/gateway-task-repair.log` and gateway output to `gateway-console.log`.  Direct Python startup bypasses the PowerShell launcher, so a new `gateway-startup.log` is no longer expected.  `View_Gateway_Log.cmd` remains the independent live viewer.
+
+If local validation fails, the task action is unchanged.  If the final task start fails, the checked Python action remains installed and the report says startup was not confirmed; the original action is in the dated XML backup.  A failure after temporary disable attempts to restore the enabled state.  Access-denied failures are reported for the owner to resolve with an elevated shell if necessary.  No dependencies are installed automatically and no other gateway process is killed.
+
+All twelve local Python tests passed, including five new startup checks for success without gateway execution, missing live dependencies, invalid group configuration, invalid active-version paths and a bounded import timeout.  The seventeen packaged gateway payload files are byte-for-byte unchanged.  Native PowerShell 5.1 and Windows Task Scheduler are unavailable on the development host; the repair is delivered for the owner's on-PC run and the reported failure is **not yet confirmed resolved**.
+
+Package SHA-256:  `0324d9b747ae8f73e1f64faa1670e40f2a4d81ac1cc75a3002368f589eb3b19d`.  The same Documents setup download now contains this repair.  Next evidence needed:  repair output, a fresh Museum ACK and sustained scheduled operation.
+
 ## Delivery sequence and evidence
 
 1. **Receiver first.**  With the current PC gateway supplying data, add a capability report and a coordinator preview that logs group members, selected upstream stops, forwarders, radio windows and the reasons for each selection.  Replay an hourly Museum service and a busier overlapping service.  Verify that the plan covers every subscribed stop and stays within the chosen live-data freshness and radio airtime budgets.  The preview can be checked alongside the working sign before enabling mesh transmissions.
