@@ -100,6 +100,17 @@ The owner reported that the Bus Sign Monitor task showed Running, enabled and al
 
 For an owner-visible console at sign-in, use the owner's interactive account, Run only when user is logged on, and an At log on trigger.  Background operation before sign-in uses a different task logon context.  Record the actual selected mode when the owner confirms the correction.  See [Microsoft logon modes](https://learn.microsoft.com/en-us/windows/win32/api/taskschd/ne-taskschd-task_logon_type) and [NTSTATUS values](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55).
 
+## Background gateway console logging, 14 November 2026
+
+The owner reports that the sign appears to receive live updates while the scheduler displays Running and Last Run Result `0xC0000602`, with no visible console.  Actual process ownership and the source of that exit status remain unverified.  Windows exposes current task state separately from the result returned by the last run.  Use fresh ACK records and process/output logs to verify current gateway activity.  [Microsoft task result](https://learn.microsoft.com/en-us/windows/win32/api/taskschd/nf-taskschd-iregisteredtask-get_lasttaskresult)
+
+The updated `OTD_Documents_Setup.zip` adds `Install_Logging.cmd` for existing installations.  It installs an updated permanent launcher and an independent `View_Gateway_Log.cmd`, with dated backups of the prior launchers.  The supervisor captures both output streams from its child process into timestamped `shared/logs/gateway-console.log`, including process ID, active application path, errors, exit codes and retries.  The PowerShell entry point logs startup and pre-Python failures in `shared/logs/gateway-startup.log`.  A recorded Python executable path in `shared/config/python.json` supplies the interpreter for subsequent task launches.
+
+The viewer tails the file and can be opened or closed independently of the gateway.  It introduces no additional serial-port consumer.  The update preserves the active application selection, firmware, settings and CSV history.  It takes effect on the next supervisor start.  The main console log appends across restarts.  Daily log rotation remains outside this patch.
+
+Three new tests passed for child stdout/stderr capture, Unicode, retry after failure, headless logging, configuration errors and preservation during the patch.  Four migration tests also passed.  The Windows launcher and viewer need the owner's on-PC check.  Updated package SHA-256 is `89acae23b50163e33a91ca6dde87a5b825e6e087740d14689a157092b7953176`.
+
+
 ## Delivery sequence and evidence
 
 1. **Receiver first.**  With the current PC gateway supplying data, add a capability report and a coordinator preview that logs group members, selected upstream stops, forwarders, radio windows and the reasons for each selection.  Replay an hourly Museum service and a busier overlapping service.  Verify that the plan covers every subscribed stop and stays within the chosen live-data freshness and radio airtime budgets.  The preview can be checked alongside the working sign before enabling mesh transmissions.
