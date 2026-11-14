@@ -6,7 +6,7 @@ Develop one firmware for supported node configurations.  Display, gateway and re
 
 | Available resources | Eligible duties |
 | --- | --- |
-| Sustained power, working Wi-Fi upstream, LoRa | Fetch and distribute transit updates as a gateway. |
+| Sustained power, working Wi-Fi upstream, LoRa | Fetch transit updates and coordinate their distribution to the group. |
 | The above plus a display | Also show departures for the configured stop. |
 | Sustainable solar and battery, LoRa, no working upstream | Receive and, if needed, relay updates within the configured group.  A fitted display serves its stop. |
 | Limited battery, LoRa | Prefer receiving updates for the local stop.  Reduce radio activity, suspend routine forwarding and use the cached timetable between updates. |
@@ -16,9 +16,17 @@ Develop one firmware for supported node configurations.  Display, gateway and re
 
 Use a supported board profile to select safe peripheral pins.  Probe what can be detected reliably.  Ask once for ambiguous hardware or installation details, including power arrangement, display model if needed, Wi-Fi credentials, transit group and local stop if applicable.  Retain those settings across restarts.  Report the detected capabilities, current duties and the reason for each change.
 
-Distinguish a plugged-in USB supply from a battery installation using available hardware signals or installer configuration.  A single battery-voltage reading cannot establish a sustainable solar budget.  For solar installations, use available charging telemetry or battery trend and reserve over time.  Use conservative defaults when evidence is missing.  Require sustained recovery before restoring expensive duties, and suspend them promptly if the battery reserve is threatened.  Take battery samples during existing wake periods under comparable load.  Start with an hourly trend to detect depletion and a daily comparison of pre-dawn reserves to assess whether a duty is sustainable.  Continue immediate low-reserve protection between trend decisions.  Tune thresholds against measured consumption.
+## Solar operating policy
 
-Treat upstream reachability, feed freshness and radio connectivity separately.  On upstream loss, preserve the age and source of cached departures and allow a qualified peer to take over.  Keep passenger display cadence independent of network cadence.  Preserve light sleep, wake before first service, provisional clock recovery and existing schedule fallback.
+The working goal is for a modest panel and the existing 2,000 mAh class battery to support a stop and scheduled forwarding through ordinary nights.  The Museum light-sleep trial covered about 7 days 19 hours from boot to the last displayed time on a roughly hourly service, with regular radio traffic and acknowledgements.  One diagnostic reported 95.5% of uptime asleep.  This gives us a comparison for measuring added relay and Wi-Fi work.  Panel yield, usable cell capacity and the energy cost on a busy corridor still need measurement.  [Museum endurance record](https://github.com/TheReverendCard/open-transit-display/issues/10#issuecomment-6643382224)
+
+* A commissioned solar stop with adequate reserve should try its assigned forwarding windows.  Record comparable battery readings during existing wakes and summarise them hourly.  An ordinary evening decline is expected.  A single declining hour leaves the forwarding assignment in place.
+* Compare the reserve before dawn and the subsequent daytime recharge across several day/night cycles.  Treat voltage as a trend indicator when it is the only measurement.  If the reserve is persistently eroding or the measured discharge suggests it cannot reach the next recharge with margin, reduce background transfers, then widen routine windows or hand forwarding to a suitable neighbour.  Preserve imminent arrivals and local timetable service.  At a genuinely low reserve the node can protect itself immediately, even if it cannot notify the coordinator.
+* Restore duties after sustained recovery.  Keep Wi-Fi acquisition, mesh forwarding and display work separately measurable so each installation can carry the duties its power budget supports.  Determine thresholds from the battery, panel, site and traffic trial.  Detect USB power where the board supports it or accept an installer setting.
+
+## Connectivity and passenger service
+
+Treat upstream reachability, feed freshness and radio connectivity separately.  On upstream loss, preserve the age and source of cached departures and continue to serve them within their validity periods.  Keep passenger display cadence independent of network cadence.  Preserve light sleep, wake before first service, provisional clock recovery and existing schedule fallback.
 
 ## Stop-to-stop forwarding and radio windows
 
@@ -34,9 +42,24 @@ Use a repeating timetable of radio windows that persists across gateway loss.  T
 
 Choose slot lengths and cadence from measured packet airtime, clock drift, processing time, delivery reliability and the acceptable age at the furthest stop.  Record transmissions per delivered update, age at the last stop, missed updates and radio awake time.  A single lost packet should be recoverable within a bounded window without redistributing the whole timetable.  This design uses MeshCore as a reference for peer communication.  Selection of a wire protocol and interoperability remain open.
 
-## First development session
+## Receiver and gateway coordination
 
-1. Run the same candidate build on a headless radio node and a display-equipped node.  Verify the startup capability report and that missing peripherals do not block startup.
-2. With sustained power and Wi-Fi, fetch a timetable on the headless node and deliver it over LoRa.  Repeat with the display-equipped node serving its stop and distributing the timetable concurrently.
-3. Remove upstream access, simulate declining power, then restore both.  Verify duty changes, stable recovery, cached departures and the reason logged for each transition.
-4. In a subsequent three-node trial, demonstrate one useful relay hop, duplicate suppression and reduced radio activity on battery.  Recheck overnight wake and first-service behaviour before moving the Museum installation to the candidate build.
+**Delivery goal.**  One internet-connected receiver/gateway should serve a corridor of stops from the shared transit feed.  Each stop should get the correct live arrivals when available, keep its validated timetable, and wake only for the work it has accepted.  A display-equipped gateway can serve its own stop at the same time.  Progress and the next bench checks are tracked here.
+
+Today the field setup has a Windows gateway process selecting stop data and submitting packets to the LoRa radio over serial.  The radio reports transmissions and received frames, including acknowledgements.  The Museum sign has demonstrated local timetable fallback and light sleep.  The coordinator described below is a development target.  Treat coordination as a duty in the unified firmware and stage the receiver-side work while the current PC gateway supplies data for comparison.  The earlier standalone proposal and field results are in [issue #10](https://github.com/TheReverendCard/open-transit-display/issues/10).
+
+| Decision | Coordinator responsibility | Stop or forwarding node responsibility |
+| --- | --- | --- |
+| Group membership and coverage | Start with the installed agency, route, direction and stops.  Reconcile configured stops with reports of stop ID, capabilities and reachable neighbours.  Retain quiet members through sleep.  Review a split when measured airtime or last-stop update age exceeds budget. | Report on joining or when something changes.  A node can hear and forward for a peer without internet access. |
+| Upstream selection | Maintain the union of the group's stop, route and direction subscriptions.  Reuse the shared feed and cached timetable; combine updates for affected stops on the same trip and prioritise imminent departures. | Use predictions for the correct trip, stop and service date.  Keep the original source timestamp through every hop. |
+| Radio schedule and time | Publish a versioned plan with group and coordinator IDs, revision, activation time, cycle length, slot assignments, repair and rendezvous windows.  Share trusted UTC and its quality when available.  Schedule enough receive time to hear member reports and traffic from other hops. | Cache the current and pending plans.  Forward only in assigned slots, account for clock drift and sleep between relevant windows.  Preserve source time, radio receipt time and passenger-clock confidence separately. |
+| Change and recovery | Announce a replacement plan ahead of activation.  Keep the rendezvous window discoverable across revisions so sleeping members can recover a missed announcement.  Reassign a forwarding slot when a node reports low reserve or a link repeatedly fails. | Apply a complete plan at the stated boundary.  On coordinator loss use the cached plan while timing is good enough; when timing becomes uncertain use the rendezvous window to reacquire.  Expire live predictions on time and continue local timetable service. |
+
+Start with one designated coordinator per group.  Peers can keep forwarding useful cached data while it is absent.  A standby coordinator is a later extension requiring a deterministic takeover rule and a test that two coordinators cannot issue competing schedules.  Keep group definitions, plan revisions and duty-change reasons visible in receiver logs so a field trace can explain which stops were served and when.
+
+## Delivery sequence and evidence
+
+1. **Receiver first.**  With the current PC gateway supplying data, add a capability report and a coordinator preview that logs group members, selected upstream stops, forwarders, radio windows and the reasons for each selection.  Replay an hourly Museum service and a busier overlapping service.  Verify that the plan covers every subscribed stop and stays within the chosen live-data freshness and radio airtime budgets.  The preview can be checked alongside the working sign before enabling mesh transmissions.
+2. **First on-air milestone.**  Run the same candidate firmware on the headless receiver/gateway and the screen-equipped node.  Demonstrate timetable-only distribution with a missing-page repair, then a combined display and gateway.  Verify existing single-stop packets and ACK behaviour during migration.  Record reset reason, plan revision and timestamp quality on reboot.
+3. **One corridor, one necessary forwarding hop.**  Place a third node beyond direct gateway reach.  Deliver a timetable revision and a live update in assigned slots.  Confirm expiry uses the original observation time.  Miss a plan announcement, remove upstream access and restart the coordinator.  Check rejoin, local fallback, independent first-service wake and far-stop delivery within the configured freshness budget.
+4. **Solar field goal.**  Compare sign-only and sign-plus-forwarding operation under matched service loads, then exercise Wi-Fi gateway duty separately.  Log traffic volume, transmit airtime, radio/CPU awake time, far-stop update age, missed departures and daily pre-dawn reserve.  Record panel, site, charge recovery and weather over multiple day/night cycles.  Establish the traffic load that sustains forwarding without a continuing loss of reserve, including a busier service than the Museum baseline.  Publish the measured operating envelope and use it to choose default duty thresholds and slot lengths.
