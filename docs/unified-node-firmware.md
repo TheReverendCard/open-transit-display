@@ -148,6 +148,14 @@ Only the two named files changed relative to repair v1.  The Python supervisor, 
 
 Next evidence:  saved-action verification from the elevated run, fresh scheduled RUN output and a new Museum ACK.  Microsoft documents [command-level ErrorAction](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_commonparameters?view=powershell-5.1) and [Task Scheduler access-denied troubleshooting](https://learn.microsoft.com/en-us/troubleshoot/windows-server/system-management-components/troubleshooting-task-scheduler-access-denied-error).
 
+## Repair v2 blocked by existing process matches, 14 November 2026
+
+The next owner run reached the process guard and stopped with seven matching PIDs:  45620, 29072, 29660, 22724, 42388, 6024 and 19976.  The output correctly stated that the requested task action had not been verified.  No successful scheduled gateway repair is established by this run.  The trailing administrator advice is a generic catch message from v2, not evidence of another access-denied error in the supplied output.
+
+The guard currently matches gateway script names anywhere in command lines.  It does not establish ownership by the Documents/OTD installation, serial-port ownership or seven independent gateway instances.  A supervisor, its child, a legacy launcher or a different matching command can contribute a PID.  Before further process handling, collect a fresh read-only Win32_Process snapshot containing matching command lines and their parents, with executable name, PID, parent PID and creation time.  Do not terminate processes using the stale pasted PID list or stop all Python processes; the PC also hosts the bat-monitor workflow.
+
+Pending evidence:  exact commands and parent relationships.  Use that to scope cleanup and improve process reporting.  No additional package change or process termination was made during this diagnostic follow-up; repair v2 remains the delivered package.  An output-only process listing is the next on-PC action.
+
 ## Delivery sequence and evidence
 
 1. **Receiver first.**  With the current PC gateway supplying data, add a capability report and a coordinator preview that logs group members, selected upstream stops, forwarders, radio windows and the reasons for each selection.  Replay an hourly Museum service and a busier overlapping service.  Verify that the plan covers every subscribed stop and stays within the chosen live-data freshness and radio airtime budgets.  The preview can be checked alongside the working sign before enabling mesh transmissions.
