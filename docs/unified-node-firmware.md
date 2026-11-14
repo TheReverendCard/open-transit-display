@@ -206,6 +206,20 @@ The repeated 0/0 summaries mean this session had not yet submitted a numbered pa
 
 No package or firmware changes were made for this observation.  The next on-PC check is the saved task action, current task state/last run, and fresh log output after 17:20:48.  Scheduled startup and ongoing unattended operation remain pending confirmation.
 
+## Saved action identified as still invalid, 14 November 2026
+
+The owner supplied a complete `schtasks /Query /V /FO LIST` read-back from JESSEXPS.  Bus Sign Monitor was Enabled/Ready, configured At system start up, with last run 17:28:08 NZDT and Last Result -1073740286 (the signed representation of 0xC0000602).  The saved action was:
+
+```text
+C:\Windows\System32\WindowsPowerShell\v1.0 -u "C:\Users\revje\Documents\OTD\run_gateway.py"
+```
+
+The arguments had changed to the correct Python launcher invocation, but Program/script still named the PowerShell **directory**, with no executable.  This is a definite saved configuration error.  Start In was already C:\Users\revje\Documents\OTD.  The next correction is specifically to replace the entire Program/script field with C:\Users\revje\AppData\Local\Programs\Python\Python312\python.exe, retaining the existing arguments and working directory, then save both the action and task-properties dialogs with local account credentials if prompted.  No new application, firmware or repair-package installation is required for this correction.
+
+The query also showed No Start On Batteries.  Perform the verification with the PC connected to mains; this record does not authorize changing that power policy.  A startup trigger need not show a dated Next Run Time in this listing.
+
+The read-back establishes the invalid saved command, not a completed repair or the precise mechanism producing the fail-fast status.  Next evidence remains the corrected saved executable, a Running task and fresh supervisor startup/ACK output.  No on-PC settings were changed from this session.
+
 ## Delivery sequence and evidence
 
 1. **Receiver first.**  With the current PC gateway supplying data, add a capability report and a coordinator preview that logs group members, selected upstream stops, forwarders, radio windows and the reasons for each selection.  Replay an hourly Museum service and a busier overlapping service.  Verify that the plan covers every subscribed stop and stays within the chosen live-data freshness and radio airtime budgets.  The preview can be checked alongside the working sign before enabling mesh transmissions.
