@@ -1,20 +1,20 @@
 {
   "provider": "citylink",
-  "fetched_at": "2026-11-15T19:28:26.538991+00:00",
-  "sha256": "fff544087cf6ea68e57bc9eb2e07d9a221796a4f05abbbe98f64adba53ca0a0e",
-  "bytes": 191105,
+  "fetched_at": "2026-11-16T23:01:28.406758+00:00",
+  "sha256": "5943e847a96de7ae54d34468ec4c13e4bb9edd1f7d43a0acc05741c68390ec8d",
+  "bytes": 219393,
   "tables": {
     "ok": true,
     "routes.txt": 9,
     "stops.txt": 268,
-    "trips.txt": 711,
-    "stop_times.txt": 25075
+    "trips.txt": 820,
+    "stop_times.txt": 28917
   },
   "attribution": "Derived from CityLink / Ride Guide date-specific published timetables; not an official agency GTFS feed",
   "service_windows": {
     "timezone": "Pacific/Auckland",
-    "covered_from": 1794740400,
-    "covered_until": 1795431600,
+    "covered_from": 1794826800,
+    "covered_until": 1795518000,
     "lead_seconds": 900,
     "late_grace_seconds": 1800,
     "intervals": [
@@ -45,6 +45,10 @@
       [
         1795366200,
         1795415100
+      ],
+      [
+        1795452600,
+        1795501500
       ]
     ]
   },
