@@ -1,12 +1,14 @@
 # Unified node firmware
 
-## Current field status, 14 November 2026, 17:37 NZDT
+## Current field status, 18 November 2026, 15:19 NZDT
 
-The owner confirmed the Windows scheduled gateway starts successfully after correcting Program/script to the full Python executable.  The active application is 0.8.5.1 under Documents/OTD, supervised by task-repair-3, using COM5.  Receiver firmware v0.8.5 reports radio_ready=1.  The one-member Museum coordinator preview fits with no unreachable stops; mesh_tx remains 0.  The sign firmware baseline remains v0.8.4e.
+The owner performed the requested PC restart test and reported correct gateway operation afterward.  At 15:19:57 the gateway submitted N1, received the completed Museum coordinator preview, subscribed to Ride Guide GTFS-RT and received TX status 0.  At 15:19:58 Museum stop 11000262 returned a matching ACK for session 946733065/N1 in 1516 ms, with sign RX=1 and gap=0.  The reboot-start acceptance check is passed on the owner's report and this post-restart radio exchange.  Login timing was not supplied, so startup specifically before user sign-in is not separately established.
 
-At this start the loaded timetable's next Museum departure was Monday 16 November at 07:15:07 NZDT, so the gateway entered its configured quiet period.  ACK 0/0 here is expected because no numbered radio packet had been sent in the new session.  The earlier 17:17:49 exchange already confirmed Museum radio acknowledgement.  A new sign ACK and continuous unattended operation are subsequent field evidence, not prerequisites for recognising this successful host/receiver startup.
+The established installation remains gateway application 0.8.5.1 under Documents/OTD with supervisor task-repair-3 and receiver firmware v0.8.5 on COM5; the sign baseline remains v0.8.4e.  These versions were established earlier, not re-reported in the latest excerpt.  The new preview has fits=1, senders=1 and unreachable=0; mesh_tx remains 0.  Actual mesh forwarding is not enabled.
 
-The scheduled-task launch fault is resolved in the owner's reported test.  Automatic launch following a PC reboot remains untested.  Earlier failure/repair sections below are historical; do not treat their pending startup status as current.
+The ACK battery field of 0 means this packet carries no valid battery voltage.  The v0.8.4e source initializes it to zero and only includes a valid measurement when battery sampling is requested and due, at most once every five minutes.  Zero alone is not evidence of a flat battery or a failed exchange.
+
+The remaining field acceptance check is unattended quiet-period-to-first-service operation, with correct sign time and timetable, resumed updates and ACKs, and no repeated sign reboot/recovery cycle.  Use the currently loaded timetable to choose the next service; the 16 November departure in earlier logs is historical.  After acceptance, the next development milestone remains the shared firmware's standalone timetable-only gateway and display-node trial.  Earlier pending-startup and repair sections below are historical; they do not supersede this status.
 
 ## Direction agreed 14 November 2026
 
@@ -239,6 +241,24 @@ The USB coordinator preview completed for museum-route6 with cycle_s=60, one 300
 The outer log timestamps and inner radio timestamps both read 17:37:06 in the new startup excerpt.  The earlier delayed-output symptom is not present in this sample, although its cause was not established.  No gateway or sign reset-loop evidence is present in this excerpt.
 
 Status:  corrected task launch and host-to-receiver startup confirmed by the owner.  The runtime binary is the known Python executable; arguments and Documents/OTD working directory remain as previously verified.  Reboot-triggered automatic startup and prolonged unattended operation remain to be checked during ordinary use.  This successful outcome requires no additional package installation.  No files on the owner's PC or device firmware were changed from the development host for this follow-up.
+
+## PC restart and matched Museum ACK, 18 November 2026
+
+Following the requested PC restart test, the owner reported "All looks correct" and supplied the 15:19:57-15:19:58 NZDT gateway excerpt.  It records:
+
+* PLAN_INPUT derived from the busiest 20 minutes in the dated feed, reserving one frame per cycle.
+* Completed museum-route6 preview with cycle_s=60, frame_slot_ms=3000, frames=1 and members=1.  Museum stop 11000262, route 6, has parent=gateway, parent_index=0, rx_slot=0 and tx_slot=-1.
+* PLAN_END with fits=1, senders=1, unreachable=0, reserved_ms=3000 and worst_delivery_ms=63000.  These remain planning estimates; mesh_tx=0.
+* Ride Guide GTFS-RT subscription with trip-ID validation, N1 submission and TX bytes=108/status=0.
+* Matching OTDA2 ACK for session 946733065, message N1 and Museum stop 11000262; RTT=1516 ms, sign RX=1 and gap=0, with RSSI=-44.0 dBm and SNR=11.0 dB.
+
+This closes the pending reboot-start field check on the owner's reported test and demonstrates a successful end-to-end exchange after restart.  The excerpt does not establish an actual live ETA, an overnight transition, sign uptime or absence of all sign resets.  The first receive count in a new gateway session is not itself evidence of a sign reboot.  No separate pre-login startup timing was collected.
+
+The raw ACK battery value is 0.  Source inspection of the v0.8.4e IRQ2 baseline confirms sendAcknowledgement initializes batt=0, samples only when requested and at least five minutes after its last valid ACK battery sample (or before any such sample), and replaces zero only for a finite 2.7-4.35 V result.  The gateway accepts the ACK independently and records a voltage observation only within its valid range.  Treat zero as no valid battery observation in this packet; it does not establish the reason sampling was skipped or rejected.
+
+Next field evidence is one unattended overnight-to-first-service cycle on the unchanged installation.  Check quiet operation, timetable/clock continuity, pre-service update recovery, matching ACKs and any repeated BOOT/time-recovery events.  Capture the relevant gateway log and the sign's physical display observations.  Keep this separate from the later candidate-firmware timetable distribution, missing-page repair and real forwarding tests.
+
+No gateway package, task setting or device firmware was changed for this record.
 
 ## Delivery sequence and evidence
 
