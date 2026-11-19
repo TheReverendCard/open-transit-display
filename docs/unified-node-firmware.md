@@ -2,6 +2,8 @@
 
 ## Current display trial status, 19 November 2026
 
+**Wireless telemetry update:** five supplied OTDP1 records at 19:44-20:07 all have only 19-51 seconds uptime and zero sleep counters.  Their reset reasons are power-on, software restart and USB-peripheral reset; no panic/watchdog/brownout reason appears in those samples.  Intentionality of the power/USB resets is not yet confirmed.  These are startup reports, not a completed sleep test.  Prefer later OTDP1 data from the gateway with the same boot nonce, longer uptime and increasing sleep counters; quiet hours may delay the next ACK-triggered report beyond the initial 20-30 minute observation.  See the candidate record for exact values and limitations.
+
 **Update: initial trial3 physical rendering check PASSED on the owner's report.**  After the correction was supplied, the owner confirmed that the sign is now displaying correctly.  No new startup log/photo accompanied this report.  Next is 20-30 minutes with the existing gateway running and the sign's Serial Monitor closed, followed by `sleep status` and `node status` output.  Verify clock progression and absence of repeated unexpected BOOT sessions.  Sleep/wake, overnight/endurance and standalone gateway/peer-transfer checks remain pending.
 
 The owner has flashed trial2 onto the screen-equipped node and selected TRMNL hardware.  Legacy LoRa reception and ACK succeeded, but the supplied photo shows four miniature layouts and lower-screen corruption.  Trial2 physical display acceptance FAILED.  The established v0.8.4e remains the rollback/reference; the owner's tested unit is now on the trial rather than that baseline.
