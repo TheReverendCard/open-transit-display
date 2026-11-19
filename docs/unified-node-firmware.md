@@ -14,6 +14,14 @@ The initial receiver/PC-gateway field acceptance is complete at the level of the
 
 The next development milestone is the shared firmware's standalone timetable-only gateway and display-node trial.  Demonstrate Wi-Fi timetable acquisition without the Windows PC, validated schedule distribution and missing-page repair with a capable peer, then the combined gateway/display role.  Preserve legacy Museum updates and ACK behaviour; test that path separately because the baseline sign has LoRa timetable-page recovery disabled.  The candidate must be built and bench-tested before installation.  Real forwarding, live-feed acquisition on the board and solar duty decisions remain later work.  Earlier pending-startup and overnight-test sections below are historical; they do not supersede this status.
 
+## Unified timetable candidate prepared, 19 November 2026
+
+The owner agreed to proceed after the baseline's observed field check.  Candidate **0.8.6-trial1** is now prepared as `OTD_Unified_086_Trial.zip`, SHA-256 `f23709e1a2b6069bcaf00302e8681e1023f0341e116f1d9bc2f5eec6fb7292b2`.  It builds the same sketch for headless gateway, display stop and combined display/gateway roles.  Embedded fonts need no preparation.  Standalone HTTPS timetable acquisition, bounded one-peer page distribution/repair, retained NVS schedules and opt-in legacy Museum packets are implemented in the candidate.
+
+An actual ESP32-S3 Plus compile/link and the C++ host tests passed.  Five critical v0.8.4e sleep/IRQ/ACK/clock functions are unchanged.  The complete source, compiled application/ELF, dependency/source-hash receipt, tests, setup procedure and original firmware rollback copies are in the owner bench bundle.  See the [candidate implementation and protocol record](unified-node-timetable-trial-086.md) for scope and evidence.
+
+**Candidate field status: not uploaded or hardware-tested.**  The installed Museum baseline remains unchanged.  Begin with standalone timetable fetch on a bench node, then test transfer and missing-page repair with a capable peer.  Legacy transmission defaults off and is tested separately with the current PC sender stopped.  This is a Museum-only direct-radio trial; it does not enable mesh forwarding, autonomous live-feed acquisition, automatic USB/solar detection or multi-stop coordination.
+
 ## Direction agreed 14 November 2026
 
 Develop one firmware for supported node configurations.  Display, gateway and relay are duties that a device can combine or suspend at runtime.  The standalone gateway timetable trial proposed in issue #10 becomes the first gateway test of this shared firmware.  This document records the design direction.  The adaptive duties and policies below are proposed work.  The Museum sign running v0.8.4e is the field baseline.
