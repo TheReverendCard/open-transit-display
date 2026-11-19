@@ -1,6 +1,8 @@
 # Unified node firmware
 
-## Current field status, 18 November 2026, 15:19 NZDT
+## Current field status, 19 November 2026
+
+The owner reports that the sign "has worked correctly the whole time" following the PC restart and requested overnight-to-first-service observation.  The observed sign-behaviour acceptance check is complete on that field report.  No new overnight log was supplied or found in the accessible files, and this session has no direct access to the Windows gateway's live log directory.  Do not describe this as an independent overnight log audit, a measured ACK success rate or proof of uninterrupted sign uptime.
 
 The owner performed the requested PC restart test and reported correct gateway operation afterward.  At 15:19:57 the gateway submitted N1, received the completed Museum coordinator preview, subscribed to Ride Guide GTFS-RT and received TX status 0.  At 15:19:58 Museum stop 11000262 returned a matching ACK for session 946733065/N1 in 1516 ms, with sign RX=1 and gap=0.  The reboot-start acceptance check is passed on the owner's report and this post-restart radio exchange.  Login timing was not supplied, so startup specifically before user sign-in is not separately established.
 
@@ -8,7 +10,9 @@ The established installation remains gateway application 0.8.5.1 under Documents
 
 The ACK battery field of 0 means this packet carries no valid battery voltage.  The v0.8.4e source initializes it to zero and only includes a valid measurement when battery sampling is requested and due, at most once every five minutes.  Zero alone is not evidence of a flat battery or a failed exchange.
 
-The remaining field acceptance check is unattended quiet-period-to-first-service operation, with correct sign time and timetable, resumed updates and ACKs, and no repeated sign reboot/recovery cycle.  Use the currently loaded timetable to choose the next service; the 16 November departure in earlier logs is historical.  After acceptance, the next development milestone remains the shared firmware's standalone timetable-only gateway and display-node trial.  Earlier pending-startup and repair sections below are historical; they do not supersede this status.
+The initial receiver/PC-gateway field acceptance is complete at the level of the evidence above:  startup and a matching radio exchange from the 18 November excerpt, followed by the owner's report of continued correct sign operation on 19 November.  Further routine observation can continue without repeating the same acceptance gate.  Keep the established Museum installation as the comparison baseline.
+
+The next development milestone is the shared firmware's standalone timetable-only gateway and display-node trial.  Demonstrate Wi-Fi timetable acquisition without the Windows PC, validated schedule distribution and missing-page repair with a capable peer, then the combined gateway/display role.  Preserve legacy Museum updates and ACK behaviour; test that path separately because the baseline sign has LoRa timetable-page recovery disabled.  The candidate must be built and bench-tested before installation.  Real forwarding, live-feed acquisition on the board and solar duty decisions remain later work.  Earlier pending-startup and overnight-test sections below are historical; they do not supersede this status.
 
 ## Direction agreed 14 November 2026
 
@@ -259,6 +263,14 @@ The raw ACK battery value is 0.  Source inspection of the v0.8.4e IRQ2 baseline 
 Next field evidence is one unattended overnight-to-first-service cycle on the unchanged installation.  Check quiet operation, timetable/clock continuity, pre-service update recovery, matching ACKs and any repeated BOOT/time-recovery events.  Capture the relevant gateway log and the sign's physical display observations.  Keep this separate from the later candidate-firmware timetable distribution, missing-page repair and real forwarding tests.
 
 No gateway package, task setting or device firmware was changed for this record.
+
+## Continued correct sign operation reported, 19 November 2026
+
+After the requested overnight-to-first-service observation, the owner stated that the sign had worked correctly throughout and offered an optional log double-check.  Record this as a passed observed-behaviour field check.  The already-reviewed 18 November post-restart N1/ACK remains the latest supplied raw gateway excerpt.
+
+The development workspace and accessible file search did not yield a recent gateway-console.log or packet_acknowledgements.csv covering the night.  The live Windows files were not accessible from this session.  Consequently, no overnight packet totals, reset count, boot-nonce continuity, source-freshness measurements, battery trend or exact pre-service transition time were independently verified.  This evidence limit does not invalidate the owner's observation or require another identical waiting period.
+
+The next development work is the standalone timetable-only trial within the unified firmware direction above.  The existing Museum installation remains the field comparison.  No package, Windows task setting or device firmware was changed during this status update.
 
 ## Delivery sequence and evidence
 
