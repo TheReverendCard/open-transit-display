@@ -1,16 +1,16 @@
 {
   "schema": "otd-stop-schedule-index-v1",
   "source": "GTFS_STATIC",
-  "static_feed_sha256": "387ef6a5a115d863dec2bea822d704635ed6c4627958c0d9489081b787d7883d",
+  "static_feed_sha256": "c6bb2da05777608e1d835c95147989ed977619b2bf161c6e0b0c22f4da0361f5",
   "covered_dates": [
-    "2026-11-19",
     "2026-11-20",
     "2026-11-21",
     "2026-11-22",
     "2026-11-23",
     "2026-11-24",
     "2026-11-25",
-    "2026-11-26"
+    "2026-11-26",
+    "2026-11-27"
   ],
   "max_entries": 160,
   "files": [
