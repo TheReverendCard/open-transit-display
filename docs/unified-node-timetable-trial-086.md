@@ -2,6 +2,12 @@
 
 ## Current candidate:  0.8.6-trial3, status updated 20 November 2026
 
+### Standalone gateway fetch and offline cache restore passed, 20 November 2026
+
+The 8 MB XIAO ESP32-S3 spare booted as a headless gateway after rebuilding under the standard S3 board profile. The Plus image had failed flash initialization because it expected 16 MB. Trial3 also rejected valid HTTPS timetables because it reused the published CRC of comma-separated timestamps as the binary CRC expected by the LoRa snapshot validator. The bench sketch was patched in `nodeSaveWifiSchedule` to calculate the binary CRC from the copied timestamps before committing. The published checksum validation is still in place.
+
+The patched spare fetched and saved 82 departures. The published revision was `BD264D2C` and the LoRa snapshot revision was `05FE9B0B`. With the hotspot off, a commanded reboot logged `NODE schedule restored revision=05FE9B0B` before `WIFI connect timed out` and `NODE UPSTREAM timetable=FAILED clock=0`. The cache survived the reboot. The restored clock estimate was provisional, so this does not establish offline serving with a trusted clock after reboot. Earlier successful online logs showed a peer request and metadata transmission. Complete LoRa page delivery and missing-page repair remain to be verified. This result applies to the locally patched bench sketch.
+
 ### Overnight sleep and display check passed, 20 November 2026
 
 The owner supplied five fresh gateway OTDP1 records from 07:55:11 through 08:15:11 NZDT and reports:  "Sign is updating and displaying correctly."  All five retain boot nonce `0BED394C`, matching the 19 November 20:07:03 report.  Uptime and sleep counters increase consistently.  This supports uninterrupted operation in the same session overnight and passes the initial overnight light-sleep/recovery and observed display check for the installed trial3 candidate.
