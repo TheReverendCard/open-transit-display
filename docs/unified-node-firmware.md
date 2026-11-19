@@ -14,6 +14,12 @@ The initial receiver/PC-gateway field acceptance is complete at the level of the
 
 The next development milestone is the shared firmware's standalone timetable-only gateway and display-node trial.  Demonstrate Wi-Fi timetable acquisition without the Windows PC, validated schedule distribution and missing-page repair with a capable peer, then the combined gateway/display role.  Preserve legacy Museum updates and ACK behaviour; test that path separately because the baseline sign has LoRa timetable-page recovery disabled.  The candidate must be built and bench-tested before installation.  Real forwarding, live-feed acquisition on the board and solar duty decisions remain later work.  Earlier pending-startup and overnight-test sections below are historical; they do not supersede this status.
 
+## RadioLib compatibility repair prepared, 19 November 2026
+
+Current bench candidate is **0.8.6-trial2**, superseding trial1 after the owner's RadioLib 8 API compile errors.  The compatibility adapter preserves existing radio settings and receive ISR semantics; all five checked baseline recovery/ACK function bodies are unchanged.  Actual ESP32-S3 Plus builds passed with RadioLib 7.3.0 and 8.0.0.  Host protocol and in-place installer checks passed.  Physical testing remains pending.
+
+The updated package includes both builds and `Apply_OTD_086_Trial2_Fix.py`, which can back up and repair the owner's existing sketch under Documents/OTD without changing shared Arduino libraries or the running gateway.  This session did not access or modify the owner's Windows drive.  Future gateway/sign delivery paths should use Documents/OTD with versioned folders and shared settings, as requested.  See the [current candidate record](unified-node-timetable-trial-086.md) for exact file hashes, scope and test limitations.
+
 ## Unified timetable candidate prepared, 19 November 2026
 
 The owner agreed to proceed after the baseline's observed field check.  Candidate **0.8.6-trial1** is now prepared as `OTD_Unified_086_Trial.zip`, SHA-256 `f23709e1a2b6069bcaf00302e8681e1023f0341e116f1d9bc2f5eec6fb7292b2`.  It builds the same sketch for headless gateway, display stop and combined display/gateway roles.  Embedded fonts need no preparation.  Standalone HTTPS timetable acquisition, bounded one-peer page distribution/repair, retained NVS schedules and opt-in legacy Museum packets are implemented in the candidate.
