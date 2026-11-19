@@ -1,4 +1,35 @@
-# Unified timetable trial 0.8.6-trial1
+# Unified timetable trial 0.8.6
+
+## Current candidate:  0.8.6-trial2, 19 November 2026
+
+The owner reported missing `setPacketReceivedAction`/`clearPacketReceivedAction` methods and an eight-argument `SX1262::begin` compile failure.  Those errors match RadioLib 8.0's breaking API changes.  Trial1 was verified only with RadioLib 7.3.0; its dependency validation did not cover the owner's installed API.
+
+Trial2 adds `OTDRadioCompat.h`.  It selects the installed major version at compile time, leaving the 7.x initialization intact.  The 8.x branch uses `ConfigLoRa_t` with 915,000,000 Hz carrier and 125,000 Hz bandwidth, SF9, CR7, sync 0x12, 10 dBm and 8-symbol preamble.  It sets `tcxoVoltage=RadioLibTCXOVoltage_t::Voltage1V8` and `useRegulatorLDO=false` before initialization.  Receive-action aliases call the same rising-edge DIO1 attach/detach functions used by 7.3.0.  No installed Arduino library is edited or downgraded.  The firmware identifies itself as trial2 and reports its RadioLib version.
+
+All five checked v0.8.4e sleep/IRQ/ACK/clock function bodies remain byte-identical.  The timetable protocol, layout, font assets, NVS behavior and duty/transmission schedules are unchanged from trial1.  RadioLib internals themselves differ between releases, so hardware validation is still required.
+
+Two actual ESP32-S3 Plus builds passed with core 3.3.2 and the same board options and other dependencies as below:
+
+| RadioLib | Program bytes | Static RAM bytes | Result |
+| --- | --- | --- | --- |
+| 7.3.0 | 1,438,951 | 51,568 | Compile/link passed |
+| 8.0.0 | 1,446,495 | 51,416 | Compile/link passed |
+
+The existing ASan/UBSan host protocol tests and all five baseline function hashes passed.  The complete refreshed `OTD_Unified_086_Trial.zip` contains 38 files, 17,003,253 bytes, SHA-256 `fb1ef3d809d0619f8ea027472a9df108643e93c0bef570a94ac8545832c9affd`.  It contains separate build artifacts for both RadioLib versions, a refreshed receipt, changelog and the in-place installer.
+
+### Owner's existing Windows installation
+
+The owner prefers all future gateway/sign deliveries under `Documents/OTD`, with versioned folders and shared settings.  The existing trial sketch is under `Documents/OTD/OTD_Unified_086_Trial/OTD_Unified_086_Trial/OTDUnified_v086`.  This cloud session has no direct access to that Windows drive.
+
+`Apply_OTD_086_Trial2_Fix.py` defaults to that sketch folder beneath the current user's home.  It checks the complete original source against known original/corrected hashes, backs up the affected files under `Documents/OTD/backups`, and installs the updated .ino, version label and compatibility header plus a repair note.  It stops on local edits, is idempotent, and attempts rollback if a write fails.  It does not open serial, flash firmware, install libraries, read credentials, stop the gateway or change Task Scheduler.  Close/reopen the Arduino sketch around the repair, then Verify and Upload to the bench device.
+
+The in-place installer changes source only.  Any original trial1 binaries/receipt outside the sketch remain trial1.  The corrected full ZIP supplies matching trial2 binaries and receipts.  Installer tests on temporary original-sketch copies passed for apply/exact compiled source, backup, repeat run, rejection of edits, and injected mid-write failure rollback.  Tests ran on Linux Python; no Windows execution or hardware upload was performed.
+
+Bench sequence remains standalone headless timetable fetch, then capable-peer transfer/missing-page repair.  Production Museum installation remains unchanged by this session.
+
+Upstream change reference:  https://github.com/jgromes/RadioLib/releases/tag/8.0.0
+
+## Historical trial1 record
 
 Prepared 19 November 2026.  Status: compiled and host-tested, awaiting physical bench tests.  The Museum field baseline remains sign v0.8.4e, receiver v0.8.5 and PC gateway 0.8.5.1.  No installed device or Windows task was changed.
 
