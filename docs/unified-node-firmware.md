@@ -2,11 +2,13 @@
 
 ## Current display trial status, 19 November 2026
 
+**Update: initial trial3 physical rendering check PASSED on the owner's report.**  After the correction was supplied, the owner confirmed that the sign is now displaying correctly.  No new startup log/photo accompanied this report.  Next is 20-30 minutes with the existing gateway running and the sign's Serial Monitor closed, followed by `sleep status` and `node status` output.  Verify clock progression and absence of repeated unexpected BOOT sessions.  Sleep/wake, overnight/endurance and standalone gateway/peer-transfer checks remain pending.
+
 The owner has flashed trial2 onto the screen-equipped node and selected TRMNL hardware.  Legacy LoRa reception and ACK succeeded, but the supplied photo shows four miniature layouts and lower-screen corruption.  Trial2 physical display acceptance FAILED.  The established v0.8.4e remains the rollback/reference; the owner's tested unit is now on the trial rather than that baseline.
 
 Candidate **0.8.6-trial3** corrects a display object initialization regression:  moving the baseline's static EPaper to plain heap allocation exposed an uninitialized grayscale flag in Seeed_GFX.  A test using actual upstream EPaper code reproduces a 192,000-byte grayscale read request on a 48,000-byte monochrome buffer.  Trial3 uses an on-demand function-local static object, and its test selects only the bounded monochrome path.  Both RadioLib ESP32-S3 Plus builds, protocol tests, recovery-function checks and in-place installer tests passed.
 
-The trial3 source repair and full package are prepared.  This session did not access the Windows drive or flash hardware.  Next acceptance is one correctly sized screen image, EPD CONFIG 800x480/1bpp, ongoing ACKs and sleep/wake stability.  Physical trial3 verification is pending.  The [candidate record](unified-node-timetable-trial-086.md) contains diagnosis, exact artifacts and evidence.  Older successful field-status sections below describe the earlier baseline, not validation of this new display candidate.
+The trial3 source repair and full package have been supplied.  This session did not access the Windows drive or flash hardware.  The initial rendering result is now confirmed by the owner above; the EPD CONFIG diagnostic, ongoing ACKs and sleep/wake stability still need field evidence.  The [candidate record](unified-node-timetable-trial-086.md) contains diagnosis, exact artifacts and evidence.  Older successful field-status sections below describe the earlier baseline, not validation of this new display candidate.
 
 ## Current field status, 19 November 2026
 
