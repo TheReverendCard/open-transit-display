@@ -1,6 +1,49 @@
 # Unified timetable trial 0.8.6
 
-## Current candidate:  0.8.6-trial2, 19 November 2026
+## Current candidate:  0.8.6-trial3, 19 November 2026
+
+### Observed trial2 display failure
+
+The owner successfully flashed trial2.  First-start hardware=0 left the screen untouched until `node hardware trmnl` and `node reboot` were entered.  The resulting log confirms hardware=1, role=stop, RadioLib 8.0.0, completed EPD FULL calls, restored 82-event cache BD264D2C, and reception of OTD2 session 776523039/N429 with TX_ACK status=0.  The photograph shows four miniature sign layouts across the upper screen and severe corruption below.  Display acceptance therefore FAILED.  Successful refresh calls and radio ACKs do not establish correct physical rendering.
+
+This was the owner's screen-equipped unit running trial2, not a headless-only trial.  Earlier statements that the Museum baseline was unchanged describe actions of the build session; the owner has now installed the candidate on this unit.  Preserve original v0.8.4e as the rollback/reference version.
+
+### Diagnosed regression and trial3 correction
+
+The UC8179/800x480/one-bit panel selection matches the working baseline.  The change from a global static `EPaper` to ordinary heap `new EPaper` exposed an omitted initializer in the pinned Seeed_GFX 2.0.3 constructor:  its private `_grayLevel` field is not initialized.  The static baseline object began with zero storage.  Nonzero heap storage can instead select the grayscale update path while the sprite buffer is still one-bit monochrome.
+
+An instrumented host regression compiles the actual upstream EPaper header/implementation with mocked base-sprite allocation and transport.  Nonzero object storage reproduces a grayscale transfer-read request of 192,000 bytes against a 48,000-byte monochrome buffer.  This is a concrete code defect consistent with the photo; the test does not reproduce the physical panel waveform.
+
+Trial3 adds `OTDDisplayStorage.h` with a function-local static display object.  Its storage is zero-initialized, and construction/framebuffer allocation still occurs only when the display profile requests it.  Headless builds reserve the small control object's static storage but skip its constructor and framebuffer allocation.  The test confirms one-time on-demand construction and repeated monochrome transfers bounded to 48,000 bytes.  Startup also validates 800x480 and 1 bpp before enabling output, and reports:
+
+```text
+EPD CONFIG width=800 height=480 bpp=1 storage=static-zeroed
+```
+
+The RadioLib 7/8 adapter, fonts, protocol, persistent settings, and transmission policy remain as in trial2.  All five checked baseline sleep/IRQ/ACK/clock functions remain byte-identical.
+
+### Validation and delivery
+
+| RadioLib | Program bytes | Static RAM bytes | Result |
+| --- | --- | --- | --- |
+| 7.3.0 | 1,439,239 | 51,984 | ESP32-S3 Plus compile/link passed |
+| 8.0.0 | 1,446,731 | 51,832 | ESP32-S3 Plus compile/link passed |
+
+The actual-library display regression, existing ASan/UBSan protocol tests and baseline-function hashes passed.  In-place repair tests passed from both trial1 and trial2, including backup, repeat execution, rejection of local edits and rollback after an injected write failure.  Tests ran on Linux; there was no Windows execution or physical upload by this session.
+
+Refreshed `OTD_Unified_086_Trial.zip`:  43 files, 17,013,066 bytes, SHA-256 `1692a7698f63e7c8268681c0cd6e9a9d18b3e9c4f1d3b690d99ff7e65202e771`.  The matching source, both builds, receipt, display regression harness and `Apply_OTD_086_Trial3_Fix.py` are included.
+
+The installer targets the previously supplied Documents/OTD sketch folder, saves backups under Documents/OTD/backups, and updates source only.  Reopen the sketch and Verify/Upload with Erase All Flash disabled.  Saved hardware selection should persist.  Original trial1/trial2 binaries/receipts outside a source-only repaired sketch are not updated; use the complete refreshed package for matching artifacts.
+
+**Next physical acceptance:** one full-size sign without tiling/corruption, the EPD CONFIG diagnostic above, continuing legacy LoRa ACKs, then sleep/wake observation.  Trial3 physical display and power/recovery testing remain pending.  Do not report the successful host tests as field acceptance.
+
+The supplied `reset_reason=3` follows the explicit `node reboot` and denotes a software restart.  The core-dump checksum warning reports invalid stored dump data; it alone does not establish a new panic or identify its origin.  No core-dump erase or NVS reset is part of this correction.
+
+Upstream source inspected:  https://github.com/Seeed-Studio/Seeed_GFX/tree/0dfdd7135425be82b5bb4b4b58d74dd51ab29a59/Extensions
+
+## Historical trial2 record
+
+## Candidate 0.8.6-trial2, 19 November 2026
 
 The owner reported missing `setPacketReceivedAction`/`clearPacketReceivedAction` methods and an eight-argument `SX1262::begin` compile failure.  Those errors match RadioLib 8.0's breaking API changes.  Trial1 was verified only with RadioLib 7.3.0; its dependency validation did not cover the owner's installed API.
 
