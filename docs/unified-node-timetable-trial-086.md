@@ -2,6 +2,14 @@
 
 ## Current candidate:  0.8.6-trial3, 19 November 2026
 
+### Physical display check passed on owner's report
+
+After receiving the trial3 fix, the owner reports:  "It is now displaying correctly."  The initial physical rendering check is passed on that report.  No new startup log or photograph accompanied this confirmation, so the exact flashed build banner, new geometry diagnostic, post-fix ACK rate and uninterrupted uptime are not independently verified in this update.
+
+Next is a short 20-30 minute observation with the existing gateway running and the sign's Serial Monitor closed, allowing the baseline USB guard to permit light sleep.  Check that the clock advances at its configured cadence and the gateway does not show repeated unexpected BOOT sessions.  Reopen the monitor afterwards and capture `sleep status` and `node status`; note any intentional resets.  This is an initial refresh/sleep recovery check, not an overnight or battery-endurance acceptance.
+
+Standalone timetable gateway operation, capable-peer page repair and combined gateway/display field checks remain separate milestones.  The corrected screen alone does not pass those tests.
+
 ### Observed trial2 display failure
 
 The owner successfully flashed trial2.  First-start hardware=0 left the screen untouched until `node hardware trmnl` and `node reboot` were entered.  The resulting log confirms hardware=1, role=stop, RadioLib 8.0.0, completed EPD FULL calls, restored 82-event cache BD264D2C, and reception of OTD2 session 776523039/N429 with TX_ACK status=0.  The photograph shows four miniature sign layouts across the upper screen and severe corruption below.  Display acceptance therefore FAILED.  Successful refresh calls and radio ACKs do not establish correct physical rendering.
@@ -35,7 +43,7 @@ Refreshed `OTD_Unified_086_Trial.zip`:  43 files, 17,013,066 bytes, SHA-256 `169
 
 The installer targets the previously supplied Documents/OTD sketch folder, saves backups under Documents/OTD/backups, and updates source only.  Reopen the sketch and Verify/Upload with Erase All Flash disabled.  Saved hardware selection should persist.  Original trial1/trial2 binaries/receipts outside a source-only repaired sketch are not updated; use the complete refreshed package for matching artifacts.
 
-**Next physical acceptance:** one full-size sign without tiling/corruption, the EPD CONFIG diagnostic above, continuing legacy LoRa ACKs, then sleep/wake observation.  Trial3 physical display and power/recovery testing remain pending.  Do not report the successful host tests as field acceptance.
+**Acceptance status:** the owner subsequently confirmed correct physical rendering, as recorded above.  Capture the EPD CONFIG diagnostic when available and continue legacy LoRa ACK and sleep/wake observation.  Trial3 power/recovery, overnight and endurance testing remain pending.  Host tests alone are not field acceptance.
 
 The supplied `reset_reason=3` follows the explicit `node reboot` and denotes a software restart.  The core-dump checksum warning reports invalid stored dump data; it alone does not establish a new panic or identify its origin.  No core-dump erase or NVS reset is part of this correction.
 
