@@ -1,12 +1,40 @@
 # Unified timetable trial 0.8.6
 
-## Current candidate:  0.8.6-trial3, 19 November 2026
+## Current candidate:  0.8.6-trial3, status updated 20 November 2026
 
-### Physical display check passed on owner's report
+### Overnight sleep and display check passed, 20 November 2026
+
+The owner supplied five fresh gateway OTDP1 records from 07:55:11 through 08:15:11 NZDT and reports:  "Sign is updating and displaying correctly."  All five retain boot nonce `0BED394C`, matching the 19 November 20:07:03 report.  Uptime and sleep counters increase consistently.  This supports uninterrupted operation in the same session overnight and passes the initial overnight light-sleep/recovery and observed display check for the installed trial3 candidate.
+
+| Report NZDT | Uptime seconds | Sleep events | Total sleep seconds | GPIO wakes | Timer wakes | Sleep errors |
+| --- | --- | --- | --- | --- | --- | --- |
+| 07:55:11 | 42522 | 20869 | 41194 | 32 | 20837 | 0 |
+| 08:00:11 | 42822 | 21008 | 41466 | 37 | 20971 | 0 |
+| 08:05:11 | 43123 | 21147 | 41738 | 42 | 21105 | 0 |
+| 08:10:11 | 43423 | 21286 | 42011 | 47 | 21239 | 0 |
+| 08:15:11 | 43723 | 21425 | 42283 | 53 | 21372 | 0 |
+
+Every report has stop=11000262, sleep_enabled=1 and sleep_supported=1.  Final uptime is 12 h 8 m 43 s; accumulated light sleep is 11 h 44 m 43 s, approximately 96.7% of uptime.  Between the first and last morning samples, 1089 of 1201 uptime seconds were asleep (90.7%), with 556 additional sleep events, 21 GPIO wakes, 535 timer wakes and no reported sleep errors.  This demonstrates continued sleep/wake operation during morning updates, not just accumulated overnight sleep.  The wake counts sum to the event counts in these samples.  Received RSSI is -31 to -33 dBm and SNR 10.2-11.5 dB.
+
+Raw owner-supplied records:
+
+```text
+2026-11-20 07:55:11 2026-11-20 07:55:11 <- radio: RX_OTHER:OTDP1|11000262|0BED394C|42522|1|1|20869|41194|32|20837|0 RSSI=-32.0 SNR=11.2
+2026-11-20 08:00:11 2026-11-20 08:00:11 <- radio: RX_OTHER:OTDP1|11000262|0BED394C|42822|1|1|21008|41466|37|20971|0 RSSI=-31.0 SNR=11.2
+2026-11-20 08:05:11 2026-11-20 08:05:11 <- radio: RX_OTHER:OTDP1|11000262|0BED394C|43123|1|1|21147|41738|42|21105|0 RSSI=-31.0 SNR=10.2
+2026-11-20 08:10:11 2026-11-20 08:10:11 <- radio: RX_OTHER:OTDP1|11000262|0BED394C|43423|1|1|21286|42011|47|21239|0 RSSI=-32.0 SNR=11.5
+2026-11-20 08:15:11 2026-11-20 08:15:11 <- radio: RX_OTHER:OTDP1|11000262|0BED394C|43723|1|1|21425|42283|53|21372|0 RSSI=-33.0 SNR=10.8
+```
+
+Evidence scope:  these are supplied gateway excerpts plus the owner's physical observation, not a direct audit of Windows logs.  They show no restart in the continuing overnight session and no reported sleep-call errors.  The boot nonce's USB-reset reason describes the session's original startup, not a new reset on each report.  The earlier setup resets are not retrospectively classified as intentional.  The excerpts do not measure complete ACK delivery rate, exact first-service wake timing, battery current, battery-only endurance or energy saving; percentage asleep is elapsed MCU sleep time, not percentage energy saved.
+
+The initial overnight observation gate is complete; no reflash or repeated identical overnight test is required for this result.  Continue ordinary use while the next development milestone is the standalone timetable-only gateway on a spare node, followed by capable-peer transfer/missing-page repair and combined gateway/display validation.  Multi-day endurance and those gateway/peer capabilities remain separate tests.  Firmware, artifacts and the owner's running installation were not changed for this documentation update.
+
+### Initial physical display check, 19 November 2026
 
 After receiving the trial3 fix, the owner reports:  "It is now displaying correctly."  The initial physical rendering check is passed on that report.  No new startup log or photograph accompanied this confirmation, so the exact flashed build banner, new geometry diagnostic, post-fix ACK rate and uninterrupted uptime are not independently verified in this update.
 
-Next is a short 20-30 minute observation with the existing gateway running and the sign's Serial Monitor closed, allowing the baseline USB guard to permit light sleep.  Check that the clock advances at its configured cadence and the gateway does not show repeated unexpected BOOT sessions.  Reopen the monitor afterwards and capture `sleep status` and `node status`; note any intentional resets.  This is an initial refresh/sleep recovery check, not an overnight or battery-endurance acceptance.
+At that stage the next check was a short observation with the existing gateway running and the sign's Serial Monitor closed, allowing the baseline USB guard to permit light sleep.  The later wireless records above now pass the initial overnight sleep/display check without requiring a USB reconnection.  Battery endurance remains a separate test.
 
 Standalone timetable gateway operation, capable-peer page repair and combined gateway/display field checks remain separate milestones.  The corrected screen alone does not pass those tests.
 
@@ -24,9 +52,9 @@ The owner supplied these five OTDP1 reports spanning setup/uploads.  The first b
 
 All reports have sleep_enabled=1 and supported=1, but zero sleep events, accumulated seconds, wake counts and sleep errors.  Four are inside the 30-second startup grace; an open USB Serial Monitor also suppresses light sleep.  These early-boot samples do not establish sleep operation or failure.  None reports a panic, watchdog or brownout cause, but the samples are not an uninterrupted history and do not prove all resets were intentional.
 
-Confirmation is needed whether the reported power/USB resets coincide with uploads or deliberate reconnections, especially the last estimated startup around 20:06:39.  If unexplained, investigate rather than marking stability passed.
+At this stage it was not established whether the reported power/USB resets coincided with uploads or deliberate reconnections, especially the last estimated startup around 20:06:39.  Their intentionality remains unconfirmed, but the later 20 November data above establishes a continuing overnight session after that startup.
 
-Use existing wireless OTDP1 records for the next sleep check instead of reconnecting USB merely to obtain counters.  Seek the same boot nonce with longer uptime, increasing sleep counters and zero errors.  Telemetry is ACK-triggered, rate-limited to one attempt per five minutes; overnight quiet mode can suppress the triggering exchanges entirely, so no new report after 20-30 minutes is inconclusive.  A later scheduled exchange can provide the accumulated evidence.  The full node configuration report remains serial-only and Wi-Fi diagnostics are not implemented.
+The subsequent check used existing wireless OTDP1 records instead of reconnecting USB merely to obtain counters.  The 20 November evidence above supplies the sought same boot nonce with longer uptime, increasing sleep counters and zero errors.  Telemetry is ACK-triggered, rate-limited to one attempt per five minutes; overnight quiet mode can suppress the triggering exchanges entirely, so no new report after 20-30 minutes is inconclusive.  A later scheduled exchange can provide the accumulated evidence.  The full node configuration report remains serial-only and Wi-Fi diagnostics are not implemented.
 
 ### Observed trial2 display failure
 
@@ -61,7 +89,7 @@ Refreshed `OTD_Unified_086_Trial.zip`:  43 files, 17,013,066 bytes, SHA-256 `169
 
 The installer targets the previously supplied Documents/OTD sketch folder, saves backups under Documents/OTD/backups, and updates source only.  Reopen the sketch and Verify/Upload with Erase All Flash disabled.  Saved hardware selection should persist.  Original trial1/trial2 binaries/receipts outside a source-only repaired sketch are not updated; use the complete refreshed package for matching artifacts.
 
-**Acceptance status:** the owner subsequently confirmed correct physical rendering, as recorded above.  Capture the EPD CONFIG diagnostic when available and continue legacy LoRa ACK and sleep/wake observation.  Trial3 power/recovery, overnight and endurance testing remain pending.  Host tests alone are not field acceptance.
+**Acceptance status, updated 20 November:** correct physical rendering is reported by the owner and the initial overnight sleep/recovery check has passed on the continuing-session telemetry above.  Multi-day endurance, standalone timetable gateway and capable-peer transfer/repair remain pending.  Exact first-service transition timing and a complete ACK delivery rate were not collected.  Host tests alone are not field acceptance.
 
 The supplied `reset_reason=3` follows the explicit `node reboot` and denotes a software restart.  The core-dump checksum warning reports invalid stored dump data; it alone does not establish a new panic or identify its origin.  No core-dump erase or NVS reset is part of this correction.
 
