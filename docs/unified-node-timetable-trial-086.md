@@ -10,6 +10,24 @@ Next is a short 20-30 minute observation with the existing gateway running and t
 
 Standalone timetable gateway operation, capable-peer page repair and combined gateway/display field checks remain separate milestones.  The corrected screen alone does not pass those tests.
 
+### Initial wireless sleep telemetry, 19 November 2026
+
+The owner supplied these five OTDP1 reports spanning setup/uploads.  The first byte of the boot nonce stores esp_reset_reason(); the pinned ESP-IDF enum identifies 1 as power-on, 3 as software restart, and 11 (hex 0B) as USB-peripheral reset.
+
+| Receiver report NZ time | Boot nonce | Uptime seconds | Reported reset reason |
+| --- | --- | --- | --- |
+| 19:44:42 | 012020EB | 51 | Power-on (1) |
+| 19:51:10 | 039856FB | 24 | Software restart (3) |
+| 19:59:24 | 0B5E35D5 | 26 | USB peripheral (11) |
+| 20:01:50 | 0138DF00 | 19 | Power-on (1) |
+| 20:07:03 | 0BED394C | 24 | USB peripheral (11) |
+
+All reports have sleep_enabled=1 and supported=1, but zero sleep events, accumulated seconds, wake counts and sleep errors.  Four are inside the 30-second startup grace; an open USB Serial Monitor also suppresses light sleep.  These early-boot samples do not establish sleep operation or failure.  None reports a panic, watchdog or brownout cause, but the samples are not an uninterrupted history and do not prove all resets were intentional.
+
+Confirmation is needed whether the reported power/USB resets coincide with uploads or deliberate reconnections, especially the last estimated startup around 20:06:39.  If unexplained, investigate rather than marking stability passed.
+
+Use existing wireless OTDP1 records for the next sleep check instead of reconnecting USB merely to obtain counters.  Seek the same boot nonce with longer uptime, increasing sleep counters and zero errors.  Telemetry is ACK-triggered, rate-limited to one attempt per five minutes; overnight quiet mode can suppress the triggering exchanges entirely, so no new report after 20-30 minutes is inconclusive.  A later scheduled exchange can provide the accumulated evidence.  The full node configuration report remains serial-only and Wi-Fi diagnostics are not implemented.
+
 ### Observed trial2 display failure
 
 The owner successfully flashed trial2.  First-start hardware=0 left the screen untouched until `node hardware trmnl` and `node reboot` were entered.  The resulting log confirms hardware=1, role=stop, RadioLib 8.0.0, completed EPD FULL calls, restored 82-event cache BD264D2C, and reception of OTD2 session 776523039/N429 with TX_ACK status=0.  The photograph shows four miniature sign layouts across the upper screen and severe corruption below.  Display acceptance therefore FAILED.  Successful refresh calls and radio ACKs do not establish correct physical rendering.
