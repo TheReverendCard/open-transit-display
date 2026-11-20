@@ -2,6 +2,10 @@
 
 ## Current candidate:  0.8.6-trial3, status updated 20 November 2026
 
+### Combined display and gateway cached-revision exchange
+
+The patched TRMNL sign on COM3 reported gateway duty enabled with legacy transmission disabled, fetched 82 departures (published revision `C71BC7A8`), and completed four full e-ink refreshes. With COM10 off per the bench setup, COM12 requested its cached LoRa revision `B467B159` and accepted metadata for that revision from session `1660177937` with `have=01FF`, the complete nine-page mask. This verifies the combined gateway's metadata path for an already cached revision. Fresh page delivery while the display is active remains to be verified.
+
 ### Selective LoRa page repair and persistence passed on the bench
 
 COM12 (headless stop `D73F1FB8`) received revision `B467B159` from the patched COM10 gateway. The receiver deliberately dropped page 2 once. Page 1 was also absent after the first pass. It advertised bitmap `00F9` and then logged reception of pages 1 and 2, reaching `00FF`. After power-off it logged `NODE schedule restored revision=B467B159` and advertised that revision as cached in its next OTNQ1 request. The restore confirms validation and persistence of the repaired snapshot. The existing gateway continued to supply OTD2 updates. This bench test did not exercise a combined display/gateway node.
