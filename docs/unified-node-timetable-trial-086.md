@@ -2,15 +2,19 @@
 
 ## Current candidate:  0.8.6-trial3, status updated 20 November 2026
 
+### Selective LoRa page repair and persistence passed on the bench
+
+COM12 (headless stop `D73F1FB8`) received revision `B467B159` from the patched COM10 gateway. The receiver deliberately dropped page 2 once. Page 1 was also absent after the first pass. It advertised bitmap `00F9` and then logged reception of pages 1 and 2, reaching `00FF`. After power-off it logged `NODE schedule restored revision=B467B159` and advertised that revision as cached in its next OTNQ1 request. The restore confirms validation and persistence of the repaired snapshot. The existing gateway continued to supply OTD2 updates. This bench test did not exercise a combined display/gateway node.
+
 ### Sign-side LoRa timetable persistence passed, 20 November 2026
 
-The gateway reported `missing=0000` for sign `495F0C7C` and revision `05FE9B0B`. With the spare gateway unplugged for the serial check, the sign rebooted and logged `restored revision=05FE9B0B`, then sent `OTNQ1|11000262|6|495F0C7C|05FE9B0B|00000000|00000000`. This confirms that the sign retained the complete 82-departure trial snapshot across reset. The sign also received a LIVE packet and transmitted its ACK on the existing gateway session. Deliberate missing-page repair remains untested on hardware.
+The gateway reported `missing=0000` for sign `495F0C7C` and revision `05FE9B0B`. With the spare gateway unplugged for the serial check, the sign rebooted and logged `restored revision=05FE9B0B`, then sent `OTNQ1|11000262|6|495F0C7C|05FE9B0B|00000000|00000000`. This confirms that the sign retained the complete 82-departure trial snapshot across reset. The sign also received a LIVE packet and transmitted its ACK on the existing gateway session. The subsequent bench test above passed deliberate missing-page repair.
 
 ### Standalone gateway fetch and offline cache restore passed, 20 November 2026
 
 The 8 MB XIAO ESP32-S3 spare booted as a headless gateway after rebuilding under the standard S3 board profile. The Plus image had failed flash initialization because it expected 16 MB. Trial3 also rejected valid HTTPS timetables because it reused the published CRC of comma-separated timestamps as the binary CRC expected by the LoRa snapshot validator. The bench sketch was patched in `nodeSaveWifiSchedule` to calculate the binary CRC from the copied timestamps before committing. The published checksum validation is still in place.
 
-The patched spare fetched and saved 82 departures. The published revision was `BD264D2C` and the LoRa snapshot revision was `05FE9B0B`. With the hotspot off, a commanded reboot logged `NODE schedule restored revision=05FE9B0B` before `WIFI connect timed out` and `NODE UPSTREAM timetable=FAILED clock=0`. The cache survived the reboot. The restored clock estimate was provisional, so this does not establish offline serving with a trusted clock after reboot. Earlier successful online logs showed a peer request and metadata transmission. Complete LoRa page delivery and missing-page repair remain to be verified. This result applies to the locally patched bench sketch.
+The patched spare fetched and saved 82 departures. The published revision was `BD264D2C` and the LoRa snapshot revision was `05FE9B0B`. With the hotspot off, a commanded reboot logged `NODE schedule restored revision=05FE9B0B` before `WIFI connect timed out` and `NODE UPSTREAM timetable=FAILED clock=0`. The cache survived the reboot. The restored clock estimate was provisional, so this does not establish offline serving with a trusted clock after reboot. Earlier successful online logs showed a peer request and metadata transmission. Subsequent tests above verified complete LoRa page delivery and missing-page repair. This result applies to the locally patched bench sketch.
 
 ### Overnight sleep and display check passed, 20 November 2026
 
