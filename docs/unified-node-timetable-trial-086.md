@@ -2,6 +2,10 @@
 
 ## Current candidate:  0.8.6-trial3, status updated 20 November 2026
 
+### Sign-side LoRa timetable persistence passed, 20 November 2026
+
+The gateway reported `missing=0000` for sign `495F0C7C` and revision `05FE9B0B`. With the spare gateway unplugged for the serial check, the sign rebooted and logged `restored revision=05FE9B0B`, then sent `OTNQ1|11000262|6|495F0C7C|05FE9B0B|00000000|00000000`. This confirms that the sign retained the complete 82-departure trial snapshot across reset. The sign also received a LIVE packet and transmitted its ACK on the existing gateway session. Deliberate missing-page repair remains untested on hardware.
+
 ### Standalone gateway fetch and offline cache restore passed, 20 November 2026
 
 The 8 MB XIAO ESP32-S3 spare booted as a headless gateway after rebuilding under the standard S3 board profile. The Plus image had failed flash initialization because it expected 16 MB. Trial3 also rejected valid HTTPS timetables because it reused the published CRC of comma-separated timestamps as the binary CRC expected by the LoRa snapshot validator. The bench sketch was patched in `nodeSaveWifiSchedule` to calculate the binary CRC from the copied timestamps before committing. The published checksum validation is still in place.
