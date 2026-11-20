@@ -1,0 +1,15 @@
+--- a/OTDUnified_v086/OTDNodeTrial.h
++++ b/OTDUnified_v086/OTDNodeTrial.h
+@@ -42,10 +42,11 @@
+ }
+ static bool nodeSaveWifiSchedule(const StoredSchedule& s,uint32_t from,uint32_t until){
+   otdtrial::Snapshot candidate;
+-  candidate.magic=otdtrial::Magic;candidate.revision=s.checksum;candidate.count=s.eventCount;
++  candidate.magic=otdtrial::Magic;candidate.count=s.eventCount;
+   candidate.from=from;candidate.until=until;
+   if(candidate.count>otdtrial::MaxEvents)return false;
+   memcpy(candidate.events,s.epochs,candidate.count*sizeof(uint32_t));
++  candidate.revision=otdtrial::crc(candidate.events,candidate.count);
+   return nodeCommit(candidate);
+ }
+ static bool nodeSend(const String& text){

@@ -1,0 +1,69 @@
+name: Build embedded transit fonts
+on:
+  push:
+    paths:
+      - 'firmware/fonts/**'
+      - 'firmware/tools/build_fonts.py'
+      - 'firmware/tools/test_fonts.py'
+      - 'firmware/tools/requirements-fonts.txt'
+      - 'firmware/layouts/**'
+      - '.github/workflows/build-fonts.yml'
+  pull_request:
+    paths:
+      - 'firmware/fonts/**'
+      - 'firmware/tools/**'
+      - 'firmware/layouts/**'
+      - '.github/workflows/build-fonts.yml'
+  workflow_dispatch:
+    inputs:
+      layout:
+        description: Repository layout JSON path
+        default: firmware/layouts/site-default.json
+        type: string
+  workflow_call:
+    inputs:
+      layout:
+        default: firmware/layouts/site-default.json
+        type: string
+    outputs:
+      artifact_name:
+        description: Generated embedded font package for this commit
+        value: ${{ jobs.fonts.outputs.artifact_name }}
+permissions:
+  contents: read
+jobs:
+  fonts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      artifact_name: transit-fonts-${{ github.sha }}
+    env:
+      FONT_LAYOUT: ${{ inputs.layout || 'firmware/layouts/site-default.json' }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Install pinned converter dependencies
+        run: python -m pip install -r firmware/tools/requirements-fonts.txt
+      - name: Test Unicode conversion, reproducibility and C++ renderer
+        run: python firmware/tools/test_fonts.py
+      - name: Generate fonts from the selected layout
+        run: python firmware/tools/build_fonts.py --layout "$FONT_LAYOUT" --out firmware/generated
+      - name: Compile the full generated package
+        run: |
+          printf '#include "transit_fonts.h"\n#include "transit_font_renderer.h"\nint main(){return transit_font_count == 0;}\n' > /tmp/font-package-check.cpp
+          g++ -std=c++17 -Wall -Wextra -Werror -Ifirmware/fonts -Ifirmware/generated -fsyntax-only /tmp/font-package-check.cpp
+      - name: Package sources, licence notices and integration helper
+        run: |
+          cp -r firmware/fonts/. firmware/generated/
+          cp "$FONT_LAYOUT" firmware/generated/layout.json
+          cp firmware/tools/build_fonts.py firmware/tools/requirements-fonts.txt firmware/generated/
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: transit-fonts-${{ github.sha }}
+          path: firmware/generated/
+          if-no-files-found: error
+          retention-days: 30

@@ -27,7 +27,18 @@ The website/layout conversation will provide:
 
 The hardware-testing conversation will integrate that output into its renderer and build workflow, then validate it on the device. It can continue its existing hardware milestones while conversion is pending.
 
-**Current status:** font identity, hashes and layout geometry are documented. Automated font conversion has not yet been delivered by the website/layout conversation. The assignment above is a work commitment, not a claim that the conversion pipeline or faithful typography is already complete.
+**Current status (13 October 2026):** the website/layout conversation has delivered the source fonts, converter, Unicode bitmap renderer helper and reusable GitHub Actions font-generation workflow. [GitHub Actions run 38363649629](https://github.com/TheReverendCard/open-transit-display/actions/runs/38363649629) passed every step, including full-package C++ compilation and artifact upload.
+
+The tested package is `transit-fonts-1355885db192a7c3da7b8eec2f1f4c2ebb5527de`: 105 size/style variants, 117 glyphs per variant, Māori macrons included, and estimated embedded font/table storage of 3,461,962 bytes. The generated package includes original sources and applicable notices. Its font data does not require a filesystem upload.
+
+**Hardware integration remains with the hardware-testing conversation.** For the next firmware version:
+- [ ] Bring the font-pipeline files from main into the Museum firmware branch.
+- [ ] Invoke the reusable font workflow or its converter during the firmware build.
+- [ ] Include the generated headers and use the renderer helper instead of temporary built-in fonts.
+- [ ] Allow enough application-partition space for fonts plus the rest of the firmware.
+- [ ] Validate baseline positioning, text fitting, regional refresh and typography on the actual display before claiming a faithful hardware rendering.
+
+See [the integration instructions and reusable-workflow example](../firmware/fonts/README.md). The converter and font-package CI are complete; a ready-to-flash board build and physical typography qualification are not implied by this result.
 
 ## Exact typography
 
@@ -38,7 +49,7 @@ The hardware-testing conversation will integrate that output into its renderer a
 | `public/display-sans-regular.otf` | 400 | `7c25be4d78155523080ab85b10277150657ff7dabbcad7037bdd536c9b6d0d08` |
 | `public/display-sans-bold.otf` | 900 | `7f33328e6b4d4cd21b45fa625791928c9407dc702db6780e56b09ca9a3ecaa67` |
 
-The originals remain in the Site source. Their URLs are relative to https://open-transit-display.thereverendjc.chatgpt.site and inherit Site access:
+The exact original bytes are now also stored in `firmware/fonts/source/*.otf.b64`, with checksums in `firmware/fonts/sources.json`. The converter decodes and verifies them automatically. The original files also remain in the Site source. Their URLs are relative to https://open-transit-display.thereverendjc.chatgpt.site and inherit Site access:
 - `/display-sans-regular.otf`
 - `/display-sans-bold.otf`
 - `/font-license.txt`

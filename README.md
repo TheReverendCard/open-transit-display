@@ -67,6 +67,8 @@ The repository starts by collecting and preserving short-run observations as Git
 
 ## Prototype path
 
+The [unified node firmware plan](docs/unified-node-firmware.md) tracks the receiver/gateway coordinator, stop-to-stop forwarding, solar power policy and bench milestones.  The hardware configurations below can share the same firmware as those duties are implemented.
+
 1. **Shop-window reference unit**: 7.5-inch-class black-and-white e-paper, ESP32-class controller, USB-C/mains, Wi-Fi, cached live data, weekly historical fallback, and local static timetable.
 2. **Solar Wi-Fi unit**: battery/solar power telemetry and timetable-aware sleeping.
 3. **LoRa leaf unit**: receives compact updates from nearby gateways while retaining all local fallbacks.
