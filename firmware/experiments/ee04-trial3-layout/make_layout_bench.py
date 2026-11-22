@@ -14,7 +14,7 @@ source, output = args.source.resolve(), args.output.resolve()
 text = (source / "OTDUnified_v086.ino").read_text(encoding="utf-8-sig")
 setup = re.search(r"(?m)^void setup\(\)\s*\{", text)
 if not setup or not all(name in text[:setup.start()] for name in
-                        ("void drawAll(time_t", "OTDDisplayStorage.h", "selectRadioTransmit", "otdDisplayPanel")):
+                        ("void drawAll(time_t", "OTDDisplayStorage.h", "selectRadioTransmit", "nodePanel")):
     parser.error("Expected a trial3 sketch with the Museum renderer and radio adapter.")
 if output.exists() or output == source or source in output.parents:
     parser.error("Choose a fresh output folder outside the production sketch.")
