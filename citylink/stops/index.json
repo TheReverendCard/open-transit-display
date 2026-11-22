@@ -1,16 +1,16 @@
 {
   "schema": "otd-stop-schedule-index-v1",
   "source": "GTFS_STATIC",
-  "static_feed_sha256": "a66230f498e958f3086978f3b147d78c17d5303d73552a00ee4b36e849c52e63",
+  "static_feed_sha256": "e85ba46bf42f9c6fdc354231ef4d4a8905ac990a7259b5e807a425fc6e5dc572",
   "covered_dates": [
-    "2026-11-22",
     "2026-11-23",
     "2026-11-24",
     "2026-11-25",
     "2026-11-26",
     "2026-11-27",
     "2026-11-28",
-    "2026-11-29"
+    "2026-11-29",
+    "2026-11-30"
   ],
   "max_entries": 160,
   "files": [
@@ -331,13 +331,13 @@
     {
       "stop_id": "11000225",
       "route": "4",
-      "entries": 166,
+      "entries": 196,
       "reason": "device_capacity_exceeded"
     },
     {
       "stop_id": "11000227",
       "route": "4",
-      "entries": 166,
+      "entries": 196,
       "reason": "device_capacity_exceeded"
     }
   ],
