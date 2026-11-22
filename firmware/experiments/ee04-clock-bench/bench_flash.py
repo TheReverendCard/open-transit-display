@@ -1,5 +1,6 @@
 """App-only installer and rollback for an EE04 XIAO ESP32-S3 Plus."""
 import argparse
+from contextlib import contextmanager
 import hashlib
 import json
 import os
@@ -85,6 +86,7 @@ class Device:
     def __init__(self, port, work):
         self.command = [find_tool(), "--chip", "esp32s3", "--port", port, "--baud", "460800"]
         self.work = work
+        self.write_in_progress = False
 
     def run(self, *args, reboot=False):
         cmd = self.command + ["--after", "hard-reset" if reboot else "no-reset"] + list(args)
@@ -104,9 +106,11 @@ class Device:
     def write(self, offset, data):
         path = self.work / "write.bin"
         path.write_bytes(data)
+        self.write_in_progress = True
         self.run("write-flash", hex(offset), str(path))
         if self.read(offset, len(data)) != data:
             raise ValueError("Flash read-back differs. Keep the backup and run Restore.")
+        self.write_in_progress = False
 
 
 def save_backup(path, data, info):
@@ -190,6 +194,26 @@ def transfer(mode, device, node, backup_dir, ask=input):
         print(f"Original application bytes verified. Recovery archive: {archive}")
 
 
+@contextmanager
+def operator_lock(root):
+    import msvcrt
+    root.mkdir(parents=True, exist_ok=True)
+    with (root / "operator.lock").open("a+b") as lock:
+        if lock.tell() == 0:
+            lock.write(b"0")
+            lock.flush()
+        lock.seek(0)
+        try:
+            msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+        except OSError as e:
+            raise ValueError("Another bench install or restore is running.") from e
+        try:
+            yield
+        finally:
+            lock.seek(0)
+            msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=("install", "restore"))
@@ -200,9 +224,17 @@ def main():
     if not re.fullmatch(r"COM[1-9][0-9]*", port, flags=re.I):
         raise ValueError("Enter a Windows COM port such as COM3.")
     backup_dir = Path.home() / "Documents/OTD/backups/clock-refresh-bench"
-    with tempfile.TemporaryDirectory() as temp:
+    with operator_lock(backup_dir), tempfile.TemporaryDirectory() as temp:
         device = Device(port, Path(temp))
-        transfer(args.mode, device, args.node, backup_dir)
+        try:
+            transfer(args.mode, device, args.node, backup_dir)
+        except (OSError, ValueError, KeyError, zipfile.BadZipFile, EOFError):
+            if not device.write_in_progress:
+                try:
+                    device.run("read-mac", reboot=True)
+                except (OSError, ValueError):
+                    pass
+            raise
         device.run("read-mac", reboot=True)
     print("Board restarted.")
 
