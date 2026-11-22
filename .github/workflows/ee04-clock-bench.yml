@@ -1,0 +1,42 @@
+name: EE04 clock bench
+on:
+  push:
+    branches: [experiment/ee04-differential-clock]
+    paths:
+      - firmware/experiments/ee04-clock-bench/**
+      - .github/workflows/ee04-clock-bench.yml
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: firmware/experiments/ee04-clock-bench
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/setup-arduino-cli@v2
+        with:
+          version: 1.6.0
+      - name: Install pinned board and libraries
+        run: |
+          arduino-cli config init
+          arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@4.0.0
+          arduino-cli lib install 'GxEPD2@1.6.9' 'RadioLib@8.0.0' 'Adafruit GFX Library@1.13.0'
+      - name: Compile XIAO ESP32-S3 Plus application
+        run: |
+          arduino-cli compile -j 4 --fqbn esp32:esp32:XIAO_ESP32S3_Plus:USBMode=hwcdc,CDCOnBoot=default,FlashSize=16M,PartitionScheme=fatflash,PSRAM=disabled,EraseFlash=none --output-dir build ClockRefreshBench
+          cp build/ClockRefreshBench.ino.bin ClockRefreshBench.bin
+          sha256sum ClockRefreshBench.bin > ClockRefreshBench.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OTD_Clock_Refresh_Bench
+          path: |
+            firmware/experiments/ee04-clock-bench/ClockRefreshBench.bin
+            firmware/experiments/ee04-clock-bench/ClockRefreshBench.sha256
+            firmware/experiments/ee04-clock-bench/ClockRefreshBench/
+            firmware/experiments/ee04-clock-bench/bench_flash.py
+            firmware/experiments/ee04-clock-bench/*.cmd
+            firmware/experiments/ee04-clock-bench/README.md
