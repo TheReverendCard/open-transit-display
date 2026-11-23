@@ -5,3 +5,7 @@ This sketch uses the normal trial3 data, clock, display slots and LoRa path. It 
 The layout bench photographs show readable normal-sized text across the simulated 08:12 to 08:13 updates. The owner reported a substantial speed improvement. These observations do not quantify energy or confirm operation with production LoRa traffic.
 
 Open OTDTrial3Hybrid/OTDTrial3Hybrid.ino. Use the same XIAO ESP32S3 Plus board and partition settings as trial3, with Erase All Flash disabled. Requires the working trial3 libraries and GxEPD2 1.6.9. To revert, upload the working trial3 sketch. Watch serial at 115200 for EPD FULL and EPD DIFF and compare against real LoRa ACKs and timetable rollover. The build and live integration are unverified until compiled and tested.
+
+## On-sign feedback
+
+The owner reported that the sign looked good and felt more responsive with hybrid refresh. The ordinary countdown resized as the minute value changed. Future Museum and other sign layouts should follow the [shared countdown typography note](https://github.com/TheReverendCard/open-transit-display/blob/main/firmware/layouts/countdown-typography.md). Measured latency and live LoRa behaviour were not reported with this feedback.
